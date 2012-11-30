@@ -1,16 +1,16 @@
-#ifndef SIMPLESERIAL_ANALYZER_RESULTS
-#define SIMPLESERIAL_ANALYZER_RESULTS
+#ifndef HDMICEC_ANALYZER_RESULTS
+#define HDMICEC_ANALYZER_RESULTS
 
 #include <AnalyzerResults.h>
 
-class SimpleSerialAnalyzer;
-class SimpleSerialAnalyzerSettings;
+class HdmiCecAnalyzer;
+class HdmiCecAnalyzerSettings;
 
-class SimpleSerialAnalyzerResults : public AnalyzerResults
+class HdmiCecAnalyzerResults : public AnalyzerResults
 {
 public:
-	SimpleSerialAnalyzerResults( SimpleSerialAnalyzer* analyzer, SimpleSerialAnalyzerSettings* settings );
-	virtual ~SimpleSerialAnalyzerResults();
+	HdmiCecAnalyzerResults( HdmiCecAnalyzer* analyzer, HdmiCecAnalyzerSettings* settings );
+	virtual ~HdmiCecAnalyzerResults();
 
 	virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
 	virtual void GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id );
@@ -22,8 +22,8 @@ public:
 protected: //functions
 
 protected:  //vars
-	SimpleSerialAnalyzerSettings* mSettings;
-	SimpleSerialAnalyzer* mAnalyzer;
+	HdmiCecAnalyzerSettings* mSettings;
+	HdmiCecAnalyzer* mAnalyzer;
 };
 
-#endif //SIMPLESERIAL_ANALYZER_RESULTS
+#endif //HDMICEC_ANALYZER_RESULTS

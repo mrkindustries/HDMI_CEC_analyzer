@@ -1,19 +1,19 @@
-#include "SimpleSerialSimulationDataGenerator.h"
-#include "SimpleSerialAnalyzerSettings.h"
+#include "HdmiCecSimulationDataGenerator.h"
+#include "HdmiCecAnalyzerSettings.h"
 
 #include <AnalyzerHelpers.h>
 
-SimpleSerialSimulationDataGenerator::SimpleSerialSimulationDataGenerator()
+HdmiCecSimulationDataGenerator::HdmiCecSimulationDataGenerator()
 :	mSerialText( "My first analyzer, woo hoo!" ),
 	mStringIndex( 0 )
 {
 }
 
-SimpleSerialSimulationDataGenerator::~SimpleSerialSimulationDataGenerator()
+HdmiCecSimulationDataGenerator::~HdmiCecSimulationDataGenerator()
 {
 }
 
-void SimpleSerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate, SimpleSerialAnalyzerSettings* settings )
+void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, HdmiCecAnalyzerSettings* settings )
 {
 	mSimulationSampleRateHz = simulation_sample_rate;
 	mSettings = settings;
@@ -23,7 +23,7 @@ void SimpleSerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate
 	mSerialSimulationData.SetInitialBitState( BIT_HIGH );
 }
 
-U32 SimpleSerialSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
+U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
 {
 	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
@@ -36,7 +36,7 @@ U32 SimpleSerialSimulationDataGenerator::GenerateSimulationData( U64 largest_sam
 	return 1;
 }
 
-void SimpleSerialSimulationDataGenerator::CreateSerialByte()
+void HdmiCecSimulationDataGenerator::CreateSerialByte()
 {
 	U32 samples_per_bit = mSimulationSampleRateHz / mSettings->mBitRate;
 

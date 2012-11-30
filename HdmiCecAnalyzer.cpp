@@ -1,23 +1,23 @@
-#include "SimpleSerialAnalyzer.h"
-#include "SimpleSerialAnalyzerSettings.h"
+#include "HdmiCecAnalyzer.h"
+#include "HdmiCecAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
-SimpleSerialAnalyzer::SimpleSerialAnalyzer()
+HdmiCecAnalyzer::HdmiCecAnalyzer()
 :	Analyzer(),  
-	mSettings( new SimpleSerialAnalyzerSettings() ),
+	mSettings( new HdmiCecAnalyzerSettings() ),
 	mSimulationInitilized( false )
 {
 	SetAnalyzerSettings( mSettings.get() );
 }
 
-SimpleSerialAnalyzer::~SimpleSerialAnalyzer()
+HdmiCecAnalyzer::~HdmiCecAnalyzer()
 {
 	KillThread();
 }
 
-void SimpleSerialAnalyzer::WorkerThread()
+void HdmiCecAnalyzer::WorkerThread()
 {
-	mResults.reset( new SimpleSerialAnalyzerResults( this, mSettings.get() ) );
+	mResults.reset( new HdmiCecAnalyzerResults( this, mSettings.get() ) );
 	SetAnalyzerResults( mResults.get() );
 	mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
 
@@ -69,12 +69,12 @@ void SimpleSerialAnalyzer::WorkerThread()
 	}
 }
 
-bool SimpleSerialAnalyzer::NeedsRerun()
+bool HdmiCecAnalyzer::NeedsRerun()
 {
 	return false;
 }
 
-U32 SimpleSerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
+U32 HdmiCecAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
 	if( mSimulationInitilized == false )
 	{
@@ -85,24 +85,24 @@ U32 SimpleSerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 
 	return mSimulationDataGenerator.GenerateSimulationData( minimum_sample_index, device_sample_rate, simulation_channels );
 }
 
-U32 SimpleSerialAnalyzer::GetMinimumSampleRateHz()
+U32 HdmiCecAnalyzer::GetMinimumSampleRateHz()
 {
 	return mSettings->mBitRate * 4;
 }
 
-const char* SimpleSerialAnalyzer::GetAnalyzerName() const
+const char* HdmiCecAnalyzer::GetAnalyzerName() const
 {
-	return "Simple Serial";
+	return "HDMI CEC";
 }
 
 const char* GetAnalyzerName()
 {
-	return "Simple Serial";
+	return "HDMI CEC";
 }
 
 Analyzer* CreateAnalyzer()
 {
-	return new SimpleSerialAnalyzer();
+	return new HdmiCecAnalyzer();
 }
 
 void DestroyAnalyzer( Analyzer* analyzer )
