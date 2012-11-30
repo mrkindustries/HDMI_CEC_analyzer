@@ -1,0 +1,8 @@
+*~
+.*
+rename_analyzer.py
+build_analyzer.py
+*.pro
+release/
+debug/
+
