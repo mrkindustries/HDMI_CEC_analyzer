@@ -1,8 +1,20 @@
-*~
-.*
-rename_analyzer.py
-build_analyzer.py
-*.pro
-release/
-debug/
+# C++ objects and libs
 
+*.[oa]
+*~
+*.bak
+*.autosave
+Makefile
+Makefile.*
+bin/
+obj/
+ui_*
+moc_*
+qrc_*
+.directory
+*.user
+*.user.*
+*-build-*
+*/doc/
+debug/
+release/
