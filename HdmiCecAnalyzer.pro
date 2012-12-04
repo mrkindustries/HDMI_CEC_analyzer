@@ -31,10 +31,12 @@ SOURCES += \
           source/HdmiCecAnalyzer.cpp \
           source/HdmiCecAnalyzerResults.cpp \
           source/HdmiCecAnalyzerSettings.cpp \
-          source/HdmiCecSimulationDataGenerator.cpp
+          source/HdmiCecSimulationDataGenerator.cpp \
+    source/HdmiCecProtocol.cpp
 
 HEADERS += \
           source/HdmiCecAnalyzer.h \
           source/HdmiCecAnalyzerResults.h \
           source/HdmiCecAnalyzerSettings.h \
-          source/HdmiCecSimulationDataGenerator.h
+          source/HdmiCecSimulationDataGenerator.h \
+    source/HdmiCecProtocol.h

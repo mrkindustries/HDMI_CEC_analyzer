@@ -17,7 +17,7 @@ public:
     virtual const char* SaveSettings();
 
     Channel mCecChannel;
-    static const std::string mCecChannelName;
+    static const char* mCecChannelName;
 
 protected:
     std::auto_ptr< AnalyzerSettingInterfaceChannel >	mCecChannelInterface;

@@ -1,13 +1,15 @@
 #include "HdmiCecAnalyzerSettings.h"
 #include <AnalyzerHelpers.h>
 
-const std::string HdmiCecAnalyzerSettings::mCecChannelName = "HDMI CEC";
+#include "HdmiCecProtocol.h"
+
+const char* HdmiCecAnalyzerSettings::mCecChannelName = HdmiCec::AnalyzerName;
 
 HdmiCecAnalyzerSettings::HdmiCecAnalyzerSettings()
 :	mCecChannel( UNDEFINED_CHANNEL )
 {
     mCecChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-    mCecChannelInterface->SetTitleAndTooltip( "CEC", "HDMI Consumer Electronics Control (CEC)" );
+    mCecChannelInterface->SetTitleAndTooltip( "CEC", HdmiCec::AnalyzerFullName );
     mCecChannelInterface->SetChannel( mCecChannel );
 
     AddInterface( mCecChannelInterface.get() );

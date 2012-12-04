@@ -2,6 +2,7 @@
 #define HDMICEC_SIMULATION_DATA_GENERATOR
 
 #include <SimulationChannelDescriptor.h>
+#include <AnalyzerHelpers.h>
 #include <string>
 class HdmiCecAnalyzerSettings;
 
@@ -19,7 +20,8 @@ protected:
     U32 mSimulationSampleRateHz;
 
 protected:
-    SimulationChannelDescriptor mCecSimulationData;
 
+    SimulationChannelDescriptor mCecSimulationData;
+    ClockGenerator mClockGenerator;
 };
 #endif //HDMICEC_SIMULATION_DATA_GENERATOR
