@@ -8,7 +8,7 @@ CONFIG += plugin debug_and_release
 DEFINES -= QT_WEBKIT
 
 # Saleae libs and includes
-INCLUDEPATH += $${SALEAE_SDK_PATH}/include
+INCLUDEPATH += $${SALEAE_SDK_PATH}/include/
 LIBS += -L$${SALEAE_SDK_PATH}/lib
 contains(QMAKE_HOST.arch, x86_64): { INCLUDEPATH += -Analyzer64 }
 !contains(QMAKE_HOST.arch, x86_64): { INCLUDEPATH += -Analyzer }
