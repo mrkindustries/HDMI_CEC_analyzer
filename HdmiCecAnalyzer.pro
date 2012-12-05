@@ -1,17 +1,19 @@
 TARGET = HdmiCecAnalyzer
 
-SALEAE_SDK_PATH= /opt/SaleaeAnalyzerSdk
+SALEAE_LOGIC_PATH= /opt/SaleaeLogic
+SALEAE_INCLUDE_PATH= /opt/SaleaeAnalyzerSdk/include
 
 TEMPLATE = lib
 CONFIG -= qt
 CONFIG += plugin debug_and_release
 DEFINES -= QT_WEBKIT
 
-# Saleae libs and includes
-INCLUDEPATH += $${SALEAE_SDK_PATH}/include/
-LIBS += -L$${SALEAE_SDK_PATH}/lib
-contains(QMAKE_HOST.arch, x86_64): { INCLUDEPATH += -Analyzer64 }
-!contains(QMAKE_HOST.arch, x86_64): { INCLUDEPATH += -Analyzer }
+# Use includes from the SDK
+INCLUDEPATH += $${SALEAE_INCLUDE_PATH}
+# But use libAnalyzer from Logic
+LIBS += -L$${SALEAE_LOGIC_PATH} -lAnalyzer
+#contains(QMAKE_HOST.arch, x86_64): { LIBS += -lAnalyzer64 }
+#!contains(QMAKE_HOST.arch, x86_64): { LIBS += -lAnalyzer }
 
 Release:DESTDIR = release
 Release:OBJECTS_DIR = release
@@ -28,15 +30,15 @@ QMAKE_LFLAGS_DEBUG = -O0 -w -fpic -g
 QMAKE_LFLAGS_RELEASE = -O0 -w -fpic -g
 
 SOURCES += \
-          source/HdmiCecAnalyzer.cpp \
-          source/HdmiCecAnalyzerResults.cpp \
-          source/HdmiCecAnalyzerSettings.cpp \
-          source/HdmiCecSimulationDataGenerator.cpp \
-    source/HdmiCecProtocol.cpp
+    source/HdmiCecAnalyzer.cpp \
+    source/HdmiCecAnalyzerResults.cpp \
+    source/HdmiCecAnalyzerSettings.cpp \
+    source/HdmiCecProtocol.cpp \
+    source/HdmiCecSimulationDataGenerator.cpp
 
 HEADERS += \
-          source/HdmiCecAnalyzer.h \
-          source/HdmiCecAnalyzerResults.h \
-          source/HdmiCecAnalyzerSettings.h \
-          source/HdmiCecSimulationDataGenerator.h \
-    source/HdmiCecProtocol.h
+    source/HdmiCecAnalyzer.h \
+    source/HdmiCecAnalyzerResults.h \
+    source/HdmiCecAnalyzerSettings.h \
+    source/HdmiCecProtocol.h \
+    source/HdmiCecSimulationDataGenerator.h

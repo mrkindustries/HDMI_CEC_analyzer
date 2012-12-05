@@ -30,11 +30,11 @@ void HdmiCecAnalyzer::WorkerThread()
 
     mCec = GetAnalyzerChannelData( mSettings->mCecChannel );
 
-    while(true)
+    while( true )
     {
         // Read the start sequence
         Frame startSeqFrame;
-        if( !readStartSequence(startSeqFrame) )
+        if( !ReadStartSequence( startSeqFrame ) )
             continue;
         mResults->AddFrame( startSeqFrame );
         mResults->CommitResults();
@@ -44,10 +44,12 @@ void HdmiCecAnalyzer::WorkerThread()
         bool eom;
 
         // Read all the frames in the message until the End of Message
-        do {
+        do
+        {
             Frame frame;
-            if( !readFrame( frameCount, frame ) )
-                break;
+            if( !ReadFrame( frameCount, frame ) )
+                break; // On error look for another start sequence
+
             mResults->AddFrame( frame );
             mResults->CommitResults();
             ReportProgress( frame.mEndingSampleInclusive );
@@ -55,6 +57,12 @@ void HdmiCecAnalyzer::WorkerThread()
             frameCount++;
             eom= frame.mFlags & HdmiCec::FrameFlag_EOM;
         } while( !eom );
+
+        // On the end of a successfully parsed message, insert an End marker
+        if(eom)
+            mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mCecChannel );
+        mResults->CommitResults();
+        ReportProgress( mCec->GetSampleNumber() );
     }
 }
 
@@ -82,12 +90,12 @@ U32 HdmiCecAnalyzer::GetMinimumSampleRateHz()
 
 const char* HdmiCecAnalyzer::GetAnalyzerName() const
 {
-    return HdmiCec::AnalyzerName;
+    return HdmiCec::ProtocolName;
 }
 
 const char* GetAnalyzerName()
 {
-    return HdmiCec::AnalyzerName;
+    return HdmiCec::ProtocolName;
 }
 
 Analyzer* CreateAnalyzer()
@@ -100,14 +108,7 @@ void DestroyAnalyzer( Analyzer* analyzer )
     delete analyzer;
 }
 
-float HdmiCecAnalyzer::timeSince(U64 sample)
-{
-    // Clamp sample difference to 0 in case sample < currentSample
-    const U64 sampleDiff= std::max(mCec->GetSampleNumber()-sample, static_cast<U64>(0));
-    return sampleDiff * 1000.0 / GetSampleRate();
-}
-
-bool HdmiCecAnalyzer::readStartSequence(Frame& frame)
+bool HdmiCecAnalyzer::ReadStartSequence( Frame& frame )
 {
     // All timing values are taken from the CEC spec, section 5.2.1 "Start Bit Timing"
 
@@ -115,38 +116,52 @@ bool HdmiCecAnalyzer::readStartSequence(Frame& frame)
     if( mCec->GetBitState() == BIT_LOW )
         mCec->AdvanceToNextEdge();
 
-    frame.mType= HdmiCec::FrameType_StartSeq;
-    frame.mFlags= 0;
-    frame.mStartingSampleInclusive= mCec->GetSampleNumber();
-
     // Advance to the next falling edge
     mCec->AdvanceToNextEdge(); // HIGH to LOW
-    U64 startingSample= mCec->GetSampleNumber();
+    U64 startingSample = mCec->GetSampleNumber();
     float elapsed= 0;
+
+    frame.mType = HdmiCec::FrameType_StartSeq;
+    frame.mFlags = 0;
+    frame.mStartingSampleInclusive = mCec->GetSampleNumber();
 
     // Next edge should be between 3.5 and 3.9ms since START_0A
     mCec->AdvanceToNextEdge(); // LOW to HIGH
-    elapsed = timeSince(startingSample);
+    elapsed = TimeSince(startingSample);
     cerr << "Elapsed1 " << elapsed << endl;
     // Check that START_0A ends in the correct time (3.7ms is the ideal)
-    if( elapsed < 3.5f || elapsed > 3.9f )
+    if( elapsed < 3.5f || elapsed > 3.9f ) {
+        MarkErrorPosition();
         return false;
+    }
 
     // Next edge should be between 4.3 and 4.7ms since START_0A
     mCec->AdvanceToNextEdge(); // HIGH to LOW
-    elapsed = timeSince(startingSample);
+    elapsed = TimeSince(startingSample);
     cerr << "Elapsed2 " << elapsed << endl;
     // Check that START_1 ends in the correct time (4.5ms is the ideal)
-    if( elapsed < 4.3f || elapsed > 4.7f )
+    if( elapsed < 4.3f || elapsed > 4.7f ) {
+        MarkErrorPosition();
         return false;
+    }
+
+    // Add start marker on beginning sequence
+    mResults->AddMarker( frame.mStartingSampleInclusive, AnalyzerResults::Start, mSettings->mCecChannel );
 
     // The last sample is the sample just before the edge
     frame.mEndingSampleInclusive= mCec->GetSampleNumber()-1;
     return true;
 }
 
-bool HdmiCecAnalyzer::readFrame(int frameIndex, Frame& frame)
+bool HdmiCecAnalyzer::ReadFrame( int frameIndex, Frame& frame )
 {
+    // Wait until the bus is in LOW
+    if( mCec->GetBitState() == BIT_HIGH )
+        mCec->AdvanceToNextEdge();
+
+    // Reset flags
+    frame.mFlags = 0;
+
     // Depending on the position on the message set frame type
     if( !frameIndex )
         frame.mType= HdmiCec::FrameType_Header;
@@ -163,30 +178,48 @@ bool HdmiCecAnalyzer::readFrame(int frameIndex, Frame& frame)
     // Read frame byte and End of Message bit
     U8 data;
     bool eom;
-    if(!readByteEOM(data, eom))
+    if( !ReadByteEOM(data, eom) ) {
+        // On error mark position and return false
+        MarkErrorPosition();
         return false;
+    }
     cerr << "Data " << (int)data << " eom " << (int)eom << endl;
 
     // Read frame ACK
     bool ack;
-    U64 sample = mCec->GetSampleNumber();
+    U64 ackStartSample = mCec->GetSampleNumber();
     mCec->AdvanceToNextEdge(); // LOW to HIGH
-    float elapsed= timeSince(sample);
+    float elapsed= TimeSince(ackStartSample);
     cerr << "Elapsed5 " << elapsed << endl;
     ack= elapsed > 1.3f && elapsed < 1.7f;
+    if(elapsed >= 2.05f)
+        return false;
+    // Mark ACK bit
+    mResults->AddMarker( mCec->GetSampleNumber()-1, ack ? AnalyzerResults::One : AnalyzerResults::Zero,
+                         mSettings->mCecChannel );
 
-    // The frame just before the edge where the bus returns to high
+    // The bus should stay in HIGH at least until 2.05ms
+    U32 samplesToAdvance1= (2.05f - elapsed) * GetSampleRate() / 1000.0;
+    if(mCec->WouldAdvancingCauseTransition(samplesToAdvance1))
+        return false;
+    // If by 2.4 ms there is no rising edge, move up to 2.4ms, else move to 2.05 ms
+    U32 samplesToAdvance2= (2.4f - elapsed) * GetSampleRate() / 1000.0;
+    if(mCec->WouldAdvancingCauseTransition(samplesToAdvance2))
+        mCec->Advance(samplesToAdvance1);
+    else
+        mCec->Advance(samplesToAdvance2);
+
+    // The frame ends just before the edge where the bus returns to high
     frame.mEndingSampleInclusive= mCec->GetSampleNumber()-1;
     cerr << "Ack " << ack << endl;
 
     // Store frame data and flags
     frame.mData1 = data;
-    frame.mFlags = 0;
     if( eom ) frame.mFlags |= HdmiCec::FrameFlag_EOM;
     if( ack ) frame.mFlags |= HdmiCec::FrameFlag_ACK;
 }
 
-bool HdmiCecAnalyzer::readByteEOM(U8& data, bool& eom)
+bool HdmiCecAnalyzer::ReadByteEOM( U8& data, bool& eom )
 {
     // All timing values are taken from the CEC spec, section 5.2.2 "Data Bit Timing"
 
@@ -198,11 +231,12 @@ bool HdmiCecAnalyzer::readByteEOM(U8& data, bool& eom)
     data= 0;
 
     // Read from the MSB to the LSB, then read the EOM bit ("bit -1")
-    for(int bit=7; bit>=-1; bit--) {
+    for(int bit=7; bit>=-1; bit--)
+    {
         U64 firstSample= mCec->GetSampleNumber();
 
         mCec->AdvanceToNextEdge(); // LOW to HIGH
-        float elapsed= timeSince(firstSample);
+        float elapsed= TimeSince(firstSample);
         cerr << "Elapsed3 " << elapsed << endl;
 
         bool value;
@@ -212,9 +246,12 @@ bool HdmiCecAnalyzer::readByteEOM(U8& data, bool& eom)
             value= false; // Logical 0
         else
             return false;
+        // Mark bit
+        mResults->AddMarker( mCec->GetSampleNumber(), value ? AnalyzerResults::One : AnalyzerResults::Zero,
+                             mSettings->mCecChannel );
 
         mCec->AdvanceToNextEdge(); // HIGH to LOW
-        elapsed= timeSince(firstSample);
+        elapsed= TimeSince(firstSample);
         cerr << "Elapsed4 " << elapsed << " bit " << bit << endl;
         if(elapsed < 2.05f || elapsed > 2.75f)
             return false;
@@ -227,4 +264,15 @@ bool HdmiCecAnalyzer::readByteEOM(U8& data, bool& eom)
     }
     cerr << "Done byte" << endl;
     return true;
+}
+
+float HdmiCecAnalyzer::TimeSince( U64 sample )
+{
+    const S64 sampleDiff= mCec->GetSampleNumber()-sample;
+    return sampleDiff * 1000.0 / GetSampleRate();
+}
+
+void HdmiCecAnalyzer::MarkErrorPosition()
+{
+    mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::ErrorDot, mSettings->mCecChannel );
 }

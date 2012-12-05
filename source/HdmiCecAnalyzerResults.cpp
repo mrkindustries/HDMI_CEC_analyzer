@@ -2,6 +2,7 @@
 #include <AnalyzerHelpers.h>
 #include "HdmiCecAnalyzer.h"
 #include "HdmiCecAnalyzerSettings.h"
+#include "HdmiCecProtocol.h"
 #include <iostream>
 #include <fstream>
 
@@ -20,13 +21,19 @@ void HdmiCecAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& chann
 {
     ClearResultStrings();
     Frame frame = GetFrame( frame_index );
+    mDisplayBase= display_base;
 
-    // TODO check
-    // Display frame's 8-bit payload
-    const int strLen= 128;
-    char numberStr[strLen];
-    AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, numberStr, strLen );
-    AddResultString( numberStr );
+    switch( frame.mType )
+    {
+        case HdmiCec::FrameType_StartSeq:
+            GenStartSeqBubble();
+            break;
+        case HdmiCec::FrameType_Header:
+            GenHeaderBubble(frame);
+            break;
+        default:
+            break;
+    }
 }
 
 void HdmiCecAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id )
@@ -81,4 +88,28 @@ void HdmiCecAnalyzerResults::GenerateTransactionTabularText( U64 transaction_id,
 {
     ClearResultStrings();
     AddResultString( "not supported" );
+}
+
+void HdmiCecAnalyzerResults::GenStartSeqBubble()
+{
+    AddResultString("S");
+    AddResultString("Start");
+    AddResultString("Start Seq.");
+    AddResultString("Start Sequence");
+}
+
+void HdmiCecAnalyzerResults::GenHeaderBubble(const Frame& frame)
+{
+    const U8 src= (frame.mData1 >> 4) & 0xF;
+    const U8 dst= (frame.mData1 >> 0) & 0xF;
+
+    const U32 strLen= 50;
+    char srcStr[strLen];
+    char dstStr[strLen];
+    AnalyzerHelpers::GetNumberString( src, mDisplayBase, 4, srcStr, strLen );
+    AnalyzerHelpers::GetNumberString( dst, mDisplayBase, 4, dstStr, strLen );
+
+    AddResultString("H");
+    AddResultString("H ", srcStr, " to ", dstStr);
+    AddResultString("Header SRC=", srcStr, ", DST=", dstStr);
 }

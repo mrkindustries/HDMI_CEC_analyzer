@@ -22,6 +22,15 @@ protected:
 protected:
 
     SimulationChannelDescriptor mCecSimulationData;
+
     ClockGenerator mClockGenerator;
+    void Advance(float msecs);
+
+    void GenerateStartSeqFrame();
+    void GenerateHeaderFrame(U8 src, U8 dst);
+    // Used for opcode and operand frames
+    void GenerateDataFrame(U8 data, bool eom, bool ack);
+
+    void GenerateBit(bool value);
 };
 #endif //HDMICEC_SIMULATION_DATA_GENERATOR
