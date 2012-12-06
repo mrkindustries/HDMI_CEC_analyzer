@@ -36,27 +36,28 @@ static const U16 MaxMessageFrames = 2 + MaxMessageOperands;
 // 4-bit Logical device addresses (CEC 10.2)
 enum DevAddress
 {
-    DevAddress_TV         = 0,
-    DevAddress_Recorder1  = 1,
-    DevAddress_Recorder2  = 2,
-    DevAddress_Tuner1     = 3,
-    DevAddress_Player1    = 4,
-    DevAddress_AudioSystem= 5,
-    DevAddress_Tuner2     = 6,
-    DevAddress_Tuner3     = 7,
-    DevAddress_Player2    = 8,
-    DevAddress_Recorder3  = 9,
-    DevAddress_Tuner4     = 10,
-    DevAddress_Player3    = 11,
-    DevAddress_Reserved1  = 12,
-    DevAddress_Reserved2  = 13,
-    DevAddress_FreeUse    = 14,
-    DevAddress_UnregBcast = 15
+    DevAddress_TV          = 0,
+    DevAddress_Recorder1   = 1,
+    DevAddress_Recorder2   = 2,
+    DevAddress_Tuner1      = 3,
+    DevAddress_Player1     = 4,
+    DevAddress_AudioSystem = 5,
+    DevAddress_Tuner2      = 6,
+    DevAddress_Tuner3      = 7,
+    DevAddress_Player2     = 8,
+    DevAddress_Recorder3   = 9,
+    DevAddress_Tuner4      = 10,
+    DevAddress_Player3     = 11,
+    DevAddress_Reserved1   = 12,
+    DevAddress_Reserved2   = 13,
+    DevAddress_FreeUse     = 14,
+    DevAddress_UnregBcast  = 15
 };
 const char* GetDevAddressText(DevAddress devAddress);
 
 // 8-bit opcodes
-enum OpCode {
+enum OpCode
+{
     OpCode_ActiveSource              = 0x82,
     OpCode_ImageViewOn               = 0x04,
     OpCode_TextViewOn                = 0x0d,

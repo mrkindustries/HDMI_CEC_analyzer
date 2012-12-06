@@ -34,8 +34,10 @@ void HdmiCecAnalyzer::WorkerThread()
     {
         // Read the start sequence
         Frame startSeqFrame;
-        if( !ReadStartSequence( startSeqFrame ) )
+        if( !ReadStartSequence( startSeqFrame ) ) {
+            MarkErrorPosition();
             continue;
+        }
         mResults->AddFrame( startSeqFrame );
         mResults->CommitResults();
         ReportProgress( startSeqFrame.mEndingSampleInclusive );
@@ -47,8 +49,10 @@ void HdmiCecAnalyzer::WorkerThread()
         do
         {
             Frame frame;
-            if( !ReadFrame( frameCount, frame ) )
+            if( !ReadFrame( frameCount, frame ) ) {
+                MarkErrorPosition();
                 break; // On error look for another start sequence
+            }
 
             mResults->AddFrame( frame );
             mResults->CommitResults();
@@ -130,20 +134,16 @@ bool HdmiCecAnalyzer::ReadStartSequence( Frame& frame )
     elapsed = TimeSince(startingSample);
     cerr << "Elapsed1 " << elapsed << endl;
     // Check that START_0A ends in the correct time (3.7ms is the ideal)
-    if( elapsed < 3.5f || elapsed > 3.9f ) {
-        MarkErrorPosition();
+    if( elapsed < 3.5f || elapsed > 3.9f )
         return false;
-    }
 
     // Next edge should be between 4.3 and 4.7ms since START_0A
     mCec->AdvanceToNextEdge(); // HIGH to LOW
     elapsed = TimeSince(startingSample);
     cerr << "Elapsed2 " << elapsed << endl;
     // Check that START_1 ends in the correct time (4.5ms is the ideal)
-    if( elapsed < 4.3f || elapsed > 4.7f ) {
-        MarkErrorPosition();
+    if( elapsed < 4.3f || elapsed > 4.7f )
         return false;
-    }
 
     // Add start marker on beginning sequence
     mResults->AddMarker( frame.mStartingSampleInclusive, AnalyzerResults::Start, mSettings->mCecChannel );
@@ -178,15 +178,13 @@ bool HdmiCecAnalyzer::ReadFrame( int frameIndex, Frame& frame )
     // Read frame byte and End of Message bit
     U8 data;
     bool eom;
-    if( !ReadByteEOM(data, eom) ) {
-        // On error mark position and return false
-        MarkErrorPosition();
+    if( !ReadByteEOM(data, eom) )
         return false;
-    }
     cerr << "Data " << (int)data << " eom " << (int)eom << endl;
 
     // Read frame ACK
     bool ack;
+    // ReadByteEOM quits just after the falling edge
     U64 ackStartSample = mCec->GetSampleNumber();
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     float elapsed= TimeSince(ackStartSample);
@@ -200,8 +198,10 @@ bool HdmiCecAnalyzer::ReadFrame( int frameIndex, Frame& frame )
 
     // The bus should stay in HIGH at least until 2.05ms
     U32 samplesToAdvance1= (2.05f - elapsed) * GetSampleRate() / 1000.0;
-    if(mCec->WouldAdvancingCauseTransition(samplesToAdvance1))
+    if(mCec->WouldAdvancingCauseTransition(samplesToAdvance1)) {
+        cerr << "ERROR 1" << endl;
         return false;
+    }
     // If by 2.4 ms there is no rising edge, move up to 2.4ms, else move to 2.05 ms
     U32 samplesToAdvance2= (2.4f - elapsed) * GetSampleRate() / 1000.0;
     if(mCec->WouldAdvancingCauseTransition(samplesToAdvance2))
@@ -217,6 +217,8 @@ bool HdmiCecAnalyzer::ReadFrame( int frameIndex, Frame& frame )
     frame.mData1 = data;
     if( eom ) frame.mFlags |= HdmiCec::FrameFlag_EOM;
     if( ack ) frame.mFlags |= HdmiCec::FrameFlag_ACK;
+
+    return true;
 }
 
 bool HdmiCecAnalyzer::ReadByteEOM( U8& data, bool& eom )

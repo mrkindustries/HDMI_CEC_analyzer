@@ -2,6 +2,7 @@
 #define HDMICEC_ANALYZER_RESULTS
 
 #include <AnalyzerResults.h>
+#include <string>
 
 class HdmiCecAnalyzer;
 class HdmiCecAnalyzerSettings;
@@ -23,6 +24,16 @@ protected: //functions
 
     void GenStartSeqBubble();
     void GenHeaderBubble(const Frame& frame);
+    void GenOpCodeBubble(const Frame& frame);
+    void GenOperandBubble(const Frame& frame);
+
+    // std::string wrapper for AddResultString
+    void AddResult(const std::string& str);
+    // std::string wrapper for AddResultString, appends frame EOM/ACK info
+    void AddResult(const std::string& str, const Frame& frame);
+
+    // std::string wrapper for AnalyzerHelpers::GetNumberString
+    std::string GetNumberString( U64 number, int bits );
 
 protected:  //vars
     HdmiCecAnalyzerSettings* mSettings;

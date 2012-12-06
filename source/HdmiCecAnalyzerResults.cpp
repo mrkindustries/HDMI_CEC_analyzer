@@ -31,6 +31,12 @@ void HdmiCecAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& chann
         case HdmiCec::FrameType_Header:
             GenHeaderBubble(frame);
             break;
+        case HdmiCec::FrameType_OpCode:
+            GenOpCodeBubble(frame);
+            break;
+        case HdmiCec::FrameType_Operand:
+            GenOperandBubble(frame);
+            break;
         default:
             break;
     }
@@ -73,43 +79,93 @@ void HdmiCecAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayB
     Frame frame = GetFrame( frame_index );
     ClearResultStrings();
 
-    char number_str[128];
-    AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-    AddResultString( number_str );
+    //char number_str[128];
+    //AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+    //AddResultString( number_str );
 }
 
 void HdmiCecAnalyzerResults::GeneratePacketTabularText( U64 packet_id, DisplayBase display_base )
 {
     ClearResultStrings();
-    AddResultString( "not supported" );
+    AddResult( "not supported" );
 }
 
 void HdmiCecAnalyzerResults::GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base )
 {
     ClearResultStrings();
-    AddResultString( "not supported" );
+    AddResult( "not supported" );
 }
 
 void HdmiCecAnalyzerResults::GenStartSeqBubble()
 {
-    AddResultString("S");
-    AddResultString("Start");
-    AddResultString("Start Seq.");
-    AddResultString("Start Sequence");
+    AddResult("S");
+    AddResult("Start");
+    AddResult("Start Seq.");
+    AddResult("Start Sequence");
 }
 
 void HdmiCecAnalyzerResults::GenHeaderBubble(const Frame& frame)
 {
     const U8 src= (frame.mData1 >> 4) & 0xF;
     const U8 dst= (frame.mData1 >> 0) & 0xF;
+    std::string srcStr= GetNumberString( src, 4 );
+    std::string dstStr= GetNumberString( dst, 4 );
 
-    const U32 strLen= 50;
-    char srcStr[strLen];
-    char dstStr[strLen];
-    AnalyzerHelpers::GetNumberString( src, mDisplayBase, 4, srcStr, strLen );
-    AnalyzerHelpers::GetNumberString( dst, mDisplayBase, 4, dstStr, strLen );
+    AddResult( "H" );
+    AddResult( "H " + srcStr + " to " + dstStr );
+    AddResult( "Header SRC=" + srcStr + ", DST=" + dstStr );
+    AddResult( "Header SRC=" + srcStr + ", DST=" + dstStr, frame );
 
-    AddResultString("H");
-    AddResultString("H ", srcStr, " to ", dstStr);
-    AddResultString("Header SRC=", srcStr, ", DST=", dstStr);
+    std::string srcName= HdmiCec::GetDevAddressText(static_cast<HdmiCec::DevAddress>(src));
+    std::string dstName= HdmiCec::GetDevAddressText(static_cast<HdmiCec::DevAddress>(dst));
+    AddResult( "Header SRC=" + srcStr + " (" + srcName + "), DST=" + dstStr + " ("+dstName+")", frame );
+}
+
+void HdmiCecAnalyzerResults::GenOpCodeBubble(const Frame& frame)
+{
+    HdmiCec::OpCode opCode= static_cast<HdmiCec::OpCode>(frame.mData1);
+    std::string opCodeStr= GetNumberString( frame.mData1, 8 );
+    std::string opCodeText= HdmiCec::GetOpCodeText(opCode);
+
+    AddResult( "O" );
+    AddResult( "Op. " + opCodeStr );
+    AddResult( "Opcode " + opCodeStr );
+    AddResult( "Opcode " + opCodeStr, frame );
+    AddResult( "Opcode " + opCodeStr + " (" + opCodeText + ")", frame );
+}
+
+void HdmiCecAnalyzerResults::GenOperandBubble(const Frame& frame)
+{
+    std::string dataStr= GetNumberString( frame.mData1, 8 );
+
+    AddResult( "D" );
+    AddResult( "Data" );
+    AddResult( "Data " + dataStr );
+    AddResult( "Data " + dataStr, frame );
+}
+
+std::string HdmiCecAnalyzerResults::GetNumberString( U64 number, int bits )
+{
+    const int strLen= 100;
+    char str[strLen];
+    AnalyzerHelpers::GetNumberString( number, mDisplayBase, bits, str, strLen );
+    return std::string( str );
+}
+
+void HdmiCecAnalyzerResults::AddResult(const std::string& str)
+{
+    AddResultString( str.c_str() );
+}
+
+void HdmiCecAnalyzerResults::AddResult(const std::string& str, const Frame& frame)
+{
+    const bool ack = frame.mFlags & HdmiCec::FrameFlag_ACK;
+    const bool eom = frame.mFlags & HdmiCec::FrameFlag_EOM;
+
+    std::string strCopy= str;
+    strCopy += ack ? " | ACK" : " | NACK";
+    if( eom )
+        strCopy += " EOM";
+
+    AddResultString( strCopy.c_str() );
 }
