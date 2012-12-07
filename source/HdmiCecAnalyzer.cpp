@@ -184,7 +184,7 @@ bool HdmiCecAnalyzer::ReadFrame( int frameIndex, Frame& frame )
 
     // Read frame ACK
     bool ack;
-    // ReadByteEOM quits just after the falling edge
+    // ReadByteEOM quits just after the falling edge (we are in LOW)
     U64 ackStartSample = mCec->GetSampleNumber();
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     float elapsed= TimeSince(ackStartSample);

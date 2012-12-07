@@ -162,10 +162,10 @@ void HdmiCecAnalyzerResults::AddResult(const std::string& str, const Frame& fram
     const bool ack = frame.mFlags & HdmiCec::FrameFlag_ACK;
     const bool eom = frame.mFlags & HdmiCec::FrameFlag_EOM;
 
-    std::string strCopy= str;
-    strCopy += ack ? " | ACK" : " | NACK";
+    std::string strCopy= str + " |";
     if( eom )
         strCopy += " EOM";
+    strCopy += ack ? " ACK" : " NACK";
 
     AddResultString( strCopy.c_str() );
 }
