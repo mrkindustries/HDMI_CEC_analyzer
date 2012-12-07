@@ -17,7 +17,7 @@ HdmiCecAnalyzerResults::~HdmiCecAnalyzerResults()
 {
 }
 
-void HdmiCecAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base )
+void HdmiCecAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& /*channel*/, DisplayBase display_base )
 {
     ClearResultStrings();
     Frame frame = GetFrame( frame_index );
@@ -84,13 +84,13 @@ void HdmiCecAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayB
     //AddResultString( number_str );
 }
 
-void HdmiCecAnalyzerResults::GeneratePacketTabularText( U64 packet_id, DisplayBase display_base )
+void HdmiCecAnalyzerResults::GeneratePacketTabularText( U64 /*packet_id*/, DisplayBase /*display_base*/ )
 {
     ClearResultStrings();
     AddResult( "not supported" );
 }
 
-void HdmiCecAnalyzerResults::GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base )
+void HdmiCecAnalyzerResults::GenerateTransactionTabularText( U64 /*transaction_id*/, DisplayBase /*display_base*/ )
 {
     ClearResultStrings();
     AddResult( "not supported" );

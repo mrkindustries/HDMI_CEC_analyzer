@@ -29,10 +29,9 @@ protected: //functions
 
     // std::string wrapper for AddResultString
     void AddResult(const std::string& str);
-    // std::string wrapper for AddResultString, appends frame EOM/ACK info
+    // std::string wrapper for AddResultString that appends frame EOM/ACK info
     void AddResult(const std::string& str, const Frame& frame);
-
-    // std::string wrapper for AnalyzerHelpers::GetNumberString
+    // std::string wrapper for AnalyzerHelpers::GetNumberString using mDisplayBase
     std::string GetNumberString( U64 number, int bits );
 
 protected:  //vars

@@ -3,6 +3,21 @@
 namespace HdmiCec
 {
 
+const char* GetProtocolName()
+{
+    return "HDMI CEC";
+}
+
+const char* GetFullProtocolName()
+{
+    return "HDMI Consumer Electronics Control (CEC)";
+}
+
+const char* GetChannelName()
+{
+    return "CEC";
+}
+
 const char* GetDevAddressText(DevAddress devAddress)
 {
     switch(devAddress)

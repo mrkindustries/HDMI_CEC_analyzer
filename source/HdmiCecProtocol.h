@@ -8,13 +8,13 @@
 
 #include <LogicPublicTypes.h>
 
-// Avoid namespace polution using a protocol-specific namespace
+// Protocol-specific namespace to avoid namespace polution
 namespace HdmiCec
 {
 
-static const char* ProtocolName = "HDMI CEC";
-static const char* ProtocolFullName = "HDMI Consumer Electronics Control (CEC)";
-static const char* Channel1Name = "CEC";
+const char* GetProtocolName();
+const char* GetFullProtocolName();
+const char* GetChannelName();
 
 // The minimum pulse width is 0.4ms (for an "initiator asserted" logical 1).
 // Reference: Section 5.2.2 "Data Bit Timing"
@@ -127,12 +127,14 @@ const char* GetOpCodeText(OpCode opCode);
 // Analyzer implementation
 //
 
+// Flags of the 10-bit CEC frame
 enum FrameFlags
 {
     FrameFlag_EOM = 0x1,
     FrameFlag_ACK = 0x2
 };
 
+// Frame types, this is not explicitly defined in the protocol
 enum FrameType
 {
     FrameType_StartSeq, // CEC start sequence
@@ -143,6 +145,5 @@ enum FrameType
 
 
 } // namespace HdmiCec
-
 
 #endif // HDMICEC_PROTOCOL

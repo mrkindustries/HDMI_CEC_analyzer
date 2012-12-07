@@ -7,7 +7,7 @@ HdmiCecAnalyzerSettings::HdmiCecAnalyzerSettings()
 :	mCecChannel( UNDEFINED_CHANNEL )
 {
     mCecChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-    mCecChannelInterface->SetTitleAndTooltip( HdmiCec::Channel1Name, HdmiCec::ProtocolName );
+    mCecChannelInterface->SetTitleAndTooltip( HdmiCec::GetChannelName(), HdmiCec::GetProtocolName() );
     mCecChannelInterface->SetChannel( mCecChannel );
 
     AddInterface( mCecChannelInterface.get() );
@@ -17,7 +17,7 @@ HdmiCecAnalyzerSettings::HdmiCecAnalyzerSettings()
     AddExportExtension( 0, "csv", "csv" );
 
     ClearChannels();
-    AddChannel( mCecChannel, HdmiCec::ProtocolName, false );
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), false );
 }
 
 HdmiCecAnalyzerSettings::~HdmiCecAnalyzerSettings()
@@ -29,7 +29,7 @@ bool HdmiCecAnalyzerSettings::SetSettingsFromInterfaces()
     mCecChannel = mCecChannelInterface->GetChannel();
 
     ClearChannels();
-    AddChannel( mCecChannel, HdmiCec::ProtocolName, true );
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), true );
 
     return true;
 }
@@ -47,7 +47,7 @@ void HdmiCecAnalyzerSettings::LoadSettings( const char* settings )
     text_archive >> mCecChannel;
 
     ClearChannels();
-    AddChannel( mCecChannel, HdmiCec::ProtocolName, true );
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), true );
 
     UpdateInterfacesFromSettings();
 }

@@ -43,10 +43,10 @@ void HdmiCecAnalyzer::WorkerThread()
         ReportProgress( startSeqFrame.mEndingSampleInclusive );
 
         int frameCount= 0;
-        bool eom;
+        bool eom= false;
 
         // Read all the frames in the message until the End of Message
-        do
+        while( !eom )
         {
             Frame frame;
             if( !ReadFrame( frameCount, frame ) ) {
@@ -60,7 +60,7 @@ void HdmiCecAnalyzer::WorkerThread()
 
             frameCount++;
             eom= frame.mFlags & HdmiCec::FrameFlag_EOM;
-        } while( !eom );
+        }
 
         // On the end of a successfully parsed message, insert an End marker
         if(eom)
@@ -94,12 +94,12 @@ U32 HdmiCecAnalyzer::GetMinimumSampleRateHz()
 
 const char* HdmiCecAnalyzer::GetAnalyzerName() const
 {
-    return HdmiCec::ProtocolName;
+    return HdmiCec::GetProtocolName();
 }
 
 const char* GetAnalyzerName()
 {
-    return HdmiCec::ProtocolName;
+    return HdmiCec::GetProtocolName();
 }
 
 Analyzer* CreateAnalyzer()

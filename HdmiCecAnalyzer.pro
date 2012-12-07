@@ -10,7 +10,7 @@ DEFINES -= QT_WEBKIT
 
 # Use includes from the SDK
 INCLUDEPATH += $${SALEAE_INCLUDE_PATH}
-# But use libAnalyzer from Logic
+# Use the same libAnalyzer that Logic uses
 LIBS += -L$${SALEAE_LOGIC_PATH} -lAnalyzer
 #contains(QMAKE_HOST.arch, x86_64): { LIBS += -lAnalyzer64 }
 #!contains(QMAKE_HOST.arch, x86_64): { LIBS += -lAnalyzer }
@@ -21,13 +21,11 @@ Release:OBJECTS_DIR = release
 Debug:DESTDIR = debug
 Debug:OBJECTS_DIR = debug
 
-QMAKE_CXX = g++
+QMAKE_CXXFLAGS_DEBUG = -O0 -Wall -fpic -g
+QMAKE_CXXFLAGS_RELEASE = -O3 -Wall -fpic
 
-QMAKE_CXXFLAGS_DEBUG = -O0 -w -fpic -g
-QMAKE_CXXFLAGS_RELEASE = -O3 -w -fpic
-
-QMAKE_LFLAGS_DEBUG = -O0 -w -fpic -g
-QMAKE_LFLAGS_RELEASE = -O0 -w -fpic -g
+QMAKE_LFLAGS_DEBUG = -O0 -Wall -fpic -g
+QMAKE_LFLAGS_RELEASE = -O0 -Wall -fpic -g
 
 SOURCES += \
     source/HdmiCecAnalyzer.cpp \
