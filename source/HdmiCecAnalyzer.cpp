@@ -1,7 +1,7 @@
 #include "HdmiCecAnalyzer.h"
-
 #include "HdmiCecAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
+
 #include "HdmiCecProtocol.h"
 
 HdmiCecAnalyzer::HdmiCecAnalyzer()
@@ -25,6 +25,9 @@ void HdmiCecAnalyzer::WorkerThread()
 
     mCec = GetAnalyzerChannelData( mSettings->mCecChannel );
 
+    // For each successful iteration of this loop, we add a new packet and one or
+    // more frames. A packet reperesents a "CEC frame" that may contain one or more
+    // CEC blocks.
     while( true )
     {
         // Read the start sequence
@@ -32,6 +35,8 @@ void HdmiCecAnalyzer::WorkerThread()
         if( !ReadStartSequence( startSeqBlock ) )
         {
             MarkErrorPosition();
+            // On error, cancel the packet and look for another start sequence
+            mResults->CancelPacketAndStartNewPacket();
             continue;
         }
         mResults->AddFrame( startSeqBlock );
@@ -48,7 +53,9 @@ void HdmiCecAnalyzer::WorkerThread()
             if( !ReadBlock( blockPosition, block ) )
             {
                 MarkErrorPosition();
-                break; // On error look for another start sequence
+                // On error, cancel the packet and look for another start sequence
+                mResults->CancelPacketAndStartNewPacket();
+                break;
             }
 
             mResults->AddFrame( block );
@@ -60,8 +67,12 @@ void HdmiCecAnalyzer::WorkerThread()
         }
 
         // On the end of a successfully parsed message, insert an End marker
-        if( eom )
+        // and commit the "packet"
+        if( eom ) {
+            mResults->CommitPacketAndStartNewPacket();
             mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mCecChannel );
+        }
+
         mResults->CommitResults();
         ReportProgress( mCec->GetSampleNumber() );
     }
@@ -123,6 +134,7 @@ bool HdmiCecAnalyzer::ReadStartSequence( Frame& block )
 
     block.mType = HdmiCec::BlockType_StartSeq;
     block.mFlags = 0;
+    block.mData1 = 0;
     block.mStartingSampleInclusive = mCec->GetSampleNumber();
 
     // Advance until the end of the "a" pulse

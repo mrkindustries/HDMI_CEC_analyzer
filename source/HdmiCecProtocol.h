@@ -29,6 +29,63 @@ static const U16 MaxMessageOperands = 14;
 // Maximum number of CEC blocks in a message (header + opcode + 0..14 operands)
 static const U16 MaxMessageBlocks = 2 + MaxMessageOperands;
 
+
+//
+// CEC Timing values
+// All values are in msecs.
+//
+
+// Start Sequence
+// CEC 5.2.1 "Start Bit Timing"
+static const float Tim_Start_AMin  = 3.50f;
+static const float Tim_Start_A     = 3.70f;
+static const float Tim_Start_AMax  = 3.90f;
+static const float Tim_Start_BMin  = 4.30f;
+static const float Tim_Start_B     = 4.50f;
+static const float Tim_Start_BMax  = 4.70f;
+
+// Data Bit
+// CEC 5.2.2 "Data Bit Timing"
+// One/Zero timings are reversed for the follower-asserted ACK bit
+static const float Tim_Bit_OneMin  = 0.40f;
+static const float Tim_Bit_One     = 0.60f;
+static const float Tim_Bit_OneMax  = 0.80f;
+
+static const float Tim_Bit_ZeroMin = 1.30f;
+static const float Tim_Bit_Zero    = 1.50f;
+static const float Tim_Bit_ZeroMax = 1.70f;
+
+static const float Tim_Bit_LenMin  = 2.05f;
+static const float Tim_Bit_Len     = 2.40f; // "Nominal data bit period"
+static const float Tim_Bit_LenMax  = 2.75f;
+
+
+//
+// Analyzer implementation
+//
+
+// Block types to be used in Frame.mType
+// We consider the Start Sequence another type of block
+// CEC 6 "Frame Description"
+enum BlockType
+{
+    BlockType_StartSeq, // CEC start sequence
+    BlockType_Header,   // Header block containing SRC and DST addresses
+    BlockType_OpCode,   // Block containing an opcode
+    BlockType_Operand   // Block containing a single operand
+};
+
+const char* GetBlockTypeString( BlockType blockType );
+
+// Flags of the 10-bit CEC block to be used in Frame.mFlags
+// CEC 6.1 "Header/Data Block description"
+enum BlockFlags
+{
+    BlockFlag_EOM = (1 << 0),
+    BlockFlag_ACK = (1 << 1)
+};
+
+
 //
 // Protocol enums
 //
@@ -54,6 +111,7 @@ enum DevAddress
     DevAddress_FreeUse     = 14,
     DevAddress_UnregBcast  = 15
 };
+
 const char* GetDevAddressString( DevAddress devAddress );
 
 // 8-bit opcodes
@@ -122,61 +180,8 @@ enum OpCode
     OpCode_SystemAudioModeStatus     = 0x7e,
     OpCode_SetAudioRate              = 0x9a
 };
+
 const char* GetOpCodeString( OpCode opCode );
-
-//
-// CEC Timing values
-// All values are in msecs.
-//
-
-// Start Sequence
-// CEC 5.2.1 "Start Bit Timing"
-static const float Tim_Start_AMin  = 3.50f;
-static const float Tim_Start_A     = 3.70f;
-static const float Tim_Start_AMax  = 3.90f;
-static const float Tim_Start_BMin  = 4.30f;
-static const float Tim_Start_B     = 4.50f;
-static const float Tim_Start_BMax  = 4.70f;
-
-// Data Bit
-// CEC 5.2.2 "Data Bit Timing"
-// One/Zero timings are reversed for the follower-asserted ACK bit
-
-static const float Tim_Bit_OneMin  = 0.40f;
-static const float Tim_Bit_One     = 0.60f;
-static const float Tim_Bit_OneMax  = 0.80f;
-
-static const float Tim_Bit_ZeroMin = 1.30f;
-static const float Tim_Bit_Zero    = 1.50f;
-static const float Tim_Bit_ZeroMax = 1.70f;
-
-static const float Tim_Bit_LenMin  = 2.05f;
-static const float Tim_Bit_Len     = 2.40f; // "Nominal data bit period"
-static const float Tim_Bit_LenMax  = 2.75f;
-
-
-//
-// Analyzer implementation
-//
-
-// Flags of the 10-bit CEC block
-// CEC 6.1 "Header/Data Block description"
-enum BlockFlags
-{
-    BlockFlag_EOM = 0x1,
-    BlockFlag_ACK = 0x2
-};
-
-// Block types, we consider the Start Sequence another type of block
-// CEC 6 "Frame Description"
-enum BlockType
-{
-    BlockType_StartSeq, // CEC start sequence
-    BlockType_Header,   // Header block containing SRC and DST addresses
-    BlockType_OpCode,   // Block containing an opcode
-    BlockType_Operand   // Block containing a single operand
-};
-const char* GetBlockTypeString( BlockType blockType );
 
 
 } // namespace HdmiCec

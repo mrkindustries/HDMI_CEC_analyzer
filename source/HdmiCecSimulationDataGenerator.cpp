@@ -38,7 +38,8 @@ void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Hdm
 
 U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
 {
-    const U64 lastSample = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
+    const U64 lastSample = AnalyzerHelpers::AdjustSimulationTargetSample(
+                largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
     while( mCecSimulationData.GetCurrentSampleNumber() < lastSample )
     {
@@ -128,7 +129,7 @@ void HdmiCecSimulationDataGenerator::GenStartSeq()
     Advance( HdmiCec::Tim_Start_A );
 
     mCecSimulationData.Transition(); // LOW to HIGH
-    Advance( HdmiCec::Tim_Start_B );
+    Advance( HdmiCec::Tim_Start_B - HdmiCec::Tim_Start_A );
 }
 
 void HdmiCecSimulationDataGenerator::GenHeaderBlock( U8 src, U8 dst, bool eom, bool ack )
