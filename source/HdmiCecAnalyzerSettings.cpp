@@ -7,7 +7,7 @@ HdmiCecAnalyzerSettings::HdmiCecAnalyzerSettings()
 :	mCecChannel( UNDEFINED_CHANNEL )
 {
     mCecChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-    mCecChannelInterface->SetTitleAndTooltip( HdmiCec::GetChannelName(), HdmiCec::GetProtocolName() );
+    mCecChannelInterface->SetTitleAndTooltip( HdmiCec::GetChannelName(), HdmiCec::GetFullProtocolName() );
     mCecChannelInterface->SetChannel( mCecChannel );
 
     AddInterface( mCecChannelInterface.get() );

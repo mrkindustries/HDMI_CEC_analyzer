@@ -18,9 +18,9 @@ const char* GetChannelName()
     return "CEC";
 }
 
-const char* GetDevAddressText(DevAddress devAddress)
+const char* GetDevAddressString( DevAddress devAddress )
 {
-    switch(devAddress)
+    switch( devAddress )
     {
         case DevAddress_TV:          return "TV";
         case DevAddress_Recorder1:   return "Recorder1";
@@ -43,9 +43,9 @@ const char* GetDevAddressText(DevAddress devAddress)
     return "Invalid";
 }
 
-const char* GetOpCodeText(OpCode opCode)
+const char* GetOpCodeString( OpCode opCode )
 {
-    switch(opCode)
+    switch( opCode )
     {
         case OpCode_ActiveSource:           return "ActiveSource";
         case OpCode_ImageViewOn:            return "ImageViewOn";
@@ -109,6 +109,19 @@ const char* GetOpCodeText(OpCode opCode)
         case OpCode_SystemAudioModeRequest: return "SystemAudioModeRequest";
         case OpCode_SystemAudioModeStatus:  return "SystemAudioModeStatus";
         case OpCode_SetAudioRate:           return "SetAudioRate";
+        default: break;
+    }
+    return "Invalid";
+}
+
+const char* GetBlockTypeString( BlockType blockType )
+{
+    switch( blockType )
+    {
+        case BlockType_StartSeq: return "StartSeq";
+        case BlockType_Header:   return "Header";
+        case BlockType_OpCode:   return "OpCode";
+        case BlockType_Operand:  return "Operand";
         default: break;
     }
     return "Invalid";

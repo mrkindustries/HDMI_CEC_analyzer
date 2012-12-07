@@ -16,21 +16,23 @@ public:
     virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
     virtual void GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id );
 
-    virtual void GenerateFrameTabularText(U64 frame_index, DisplayBase display_base );
+    virtual void GenerateFrameTabularText( U64 frame_index, DisplayBase display_base );
     virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
     virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
 protected: //functions
 
+    // Generate bubbles for different frame types.
+    void GenBubbleText( U64 frame_index, DisplayBase display_base, bool tabular );
     void GenStartSeqBubble();
-    void GenHeaderBubble(const Frame& frame);
-    void GenOpCodeBubble(const Frame& frame);
-    void GenOperandBubble(const Frame& frame);
+    void GenHeaderBubble( const Frame& block );
+    void GenOpCodeBubble( const Frame& block );
+    void GenOperandBubble( const Frame& block );
 
     // std::string wrapper for AddResultString
-    void AddResult(const std::string& str);
-    // std::string wrapper for AddResultString that appends frame EOM/ACK info
-    void AddResult(const std::string& str, const Frame& frame);
+    void AddResult( const std::string& str );
+    // std::string wrapper for AddResultString that appends block EOM/ACK info
+    void AddResult( const std::string& str, const Frame& block );
     // std::string wrapper for AnalyzerHelpers::GetNumberString using mDisplayBase
     std::string GetNumberString( U64 number, int bits );
 
@@ -39,6 +41,7 @@ protected:  //vars
     HdmiCecAnalyzer* mAnalyzer;
 
     DisplayBase mDisplayBase;
+    bool mTabular;
 };
 
 #endif //HDMICEC_ANALYZER_RESULTS

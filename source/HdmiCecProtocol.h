@@ -12,28 +12,29 @@
 namespace HdmiCec
 {
 
+// HDMI CEC
 const char* GetProtocolName();
+// HDMI Consumer Electronics Control (CEC)
 const char* GetFullProtocolName();
+// CEC
 const char* GetChannelName();
 
-// The minimum pulse width is 0.4ms (for an "initiator asserted" logical 1).
-// Reference: Section 5.2.2 "Data Bit Timing"
-// Max frequency is 1000ms / 0.4ms= 2.5 kHz.
-static const U32 MaxFrequency = 2500;
-
-// Minimum recommended sample rate: mMaxBitRate * 4 = 10 kHz
-static const U32 MinSampleRate = MaxFrequency * 4;
+// The minimum interval lasts 0.05ms (T3-T2 from CEC 5.2.2 "Data Bit Timing")
+// In order to reconstruct that interval, the min. recommended sample rate is
+// 1000 / 0.05 * 4 = 80 kHz, that we round up to 100 kHz.
+static const U32 MinSampleRateHz = 100e3;
 
 // Maximum number of operands in a message
 static const U16 MaxMessageOperands = 14;
-// Maximum number of frames in a message (header frame + op frame + 0..14 operand frames)
-static const U16 MaxMessageFrames = 2 + MaxMessageOperands;
+// Maximum number of CEC blocks in a message (header + opcode + 0..14 operands)
+static const U16 MaxMessageBlocks = 2 + MaxMessageOperands;
 
 //
 // Protocol enums
 //
 
-// 4-bit Logical device addresses (CEC 10.2)
+// 4-bit Logical device addresses
+// CEC 10.2 "Logical Addressing"
 enum DevAddress
 {
     DevAddress_TV          = 0,
@@ -53,7 +54,7 @@ enum DevAddress
     DevAddress_FreeUse     = 14,
     DevAddress_UnregBcast  = 15
 };
-const char* GetDevAddressText(DevAddress devAddress);
+const char* GetDevAddressString( DevAddress devAddress );
 
 // 8-bit opcodes
 enum OpCode
@@ -121,27 +122,30 @@ enum OpCode
     OpCode_SystemAudioModeStatus     = 0x7e,
     OpCode_SetAudioRate              = 0x9a
 };
-const char* GetOpCodeText(OpCode opCode);
+const char* GetOpCodeString( OpCode opCode );
 
 //
 // Analyzer implementation
 //
 
-// Flags of the 10-bit CEC frame
-enum FrameFlags
+// Flags of the 10-bit CEC block
+// CEC 6.1 "Header/Data Block description"
+enum BlockFlags
 {
-    FrameFlag_EOM = 0x1,
-    FrameFlag_ACK = 0x2
+    BlockFlag_EOM = 0x1,
+    BlockFlag_ACK = 0x2
 };
 
-// Frame types, this is not explicitly defined in the protocol
-enum FrameType
+// Block types, we consider the Start Sequence another type of block
+// CEC 6 "Frame Description"
+enum BlockType
 {
-    FrameType_StartSeq, // CEC start sequence
-    FrameType_Header,   // Header frame containing SRC and DST addresses
-    FrameType_OpCode,   // Frame containing an opcode
-    FrameType_Operand   // Frame containing a single operand
+    BlockType_StartSeq, // CEC start sequence
+    BlockType_Header,   // Header block containing SRC and DST addresses
+    BlockType_OpCode,   // Block containing an opcode
+    BlockType_Operand   // Block containing a single operand
 };
+const char* GetBlockTypeString( BlockType blockType );
 
 
 } // namespace HdmiCec

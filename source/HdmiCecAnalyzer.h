@@ -21,12 +21,12 @@ public:
     virtual bool NeedsRerun();
 
 protected:
-    // Reads the "start CEC frame sequency", returns false on error
-    bool ReadStartSequence( Frame& frame );
-    // Reads a 10-bit CEC word. Sets frame type depending on the frame order in the message
-    // Returns false on error.
-    bool ReadFrame( int frameIndex, Frame& frame );
-    // Reads the frame data byte plus the EOM bit written by the initiatior.
+    // Reads the start sequence, returns false on error
+    bool ReadStartSequence( Frame& block );
+    // Reads a 10-bit CEC block. Sets mType depending on the block position
+    // in the message (as indicated by blockIndex). Returns false on error.
+    bool ReadBlock( int blockIndex, Frame& block );
+    // Reads the block data byte plus the EOM bit written by the initiatior.
     // Returns false on error
     bool ReadByteEOM( U8& data, bool& eom );
 

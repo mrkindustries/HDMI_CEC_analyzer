@@ -31,16 +31,16 @@ protected:
     void GetInitTransaction();
 
 
-    void GenStartSeqFrame();
-    void GenHeaderFrame(U8 src, U8 dst, bool eom = false, bool ack= true);
-    void GenDataFrame(U8 data, bool eom, bool ack);
+    void GenStartSeq();
+    void GenHeaderBlock( U8 src, U8 dst, bool eom = false, bool ack= true );
+    void GenDataBlock( U8 data, bool eom, bool ack );
     // Generates a transition representing a single bit, if ackBit is true
     // the the timings are inverted as indicated by the spec
-    void GenBit(bool value, bool ackBit = false);
+    void GenBit( bool value, bool ackBit = false );
 
     // Advance a time period in the current state
-    void Advance(float msecs);
+    void Advance( float msecs );
     // Advance a random time period from minMsecs to maxMsecs in the current state
-    void AdvanceRand(float minMsecs, float maxMsecs);
+    void AdvanceRand( float minMsecs, float maxMsecs );
 };
 #endif //HDMICEC_SIMULATION_DATA_GENERATOR

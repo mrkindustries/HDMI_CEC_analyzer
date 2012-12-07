@@ -1,5 +1,2 @@
-- GenerateExportFile
 - Make some times constants in HdmiCecProtocol
-- Check coding style
-- Check the uses of GetProtocolName, GetFullProtocolName, etc.
 - Re-read SDK pdf to check implementation
