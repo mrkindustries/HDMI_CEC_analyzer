@@ -125,19 +125,18 @@ bool HdmiCecAnalyzer::ReadStartSequence( Frame& block )
     block.mFlags = 0;
     block.mStartingSampleInclusive = mCec->GetSampleNumber();
 
-    // Next edge should be between 3.5 and 3.9ms since startingSample
+    // Advance until the end of the "a" pulse
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     elapsed = TimeSince( startingSample );
-
     // Check that pulse ends in the correct time
-    if( elapsed < 3.5f || elapsed > 3.9f )
+    if( elapsed < HdmiCec::Tim_Start_AMin || elapsed > HdmiCec::Tim_Start_AMax )
         return false;
 
-    // Next edge should be between 4.3 and 4.7ms since startingSample
+    // Advance until the end of the "b" pulse
     mCec->AdvanceToNextEdge(); // HIGH to LOW
     elapsed = TimeSince( startingSample );
     // Check that the pulse ends in the correct time
-    if( elapsed < 4.3f || elapsed > 4.7f )
+    if( elapsed < HdmiCec::Tim_Start_BMin || elapsed > HdmiCec::Tim_Start_BMax )
         return false;
 
     // Add start marker on beginning sequence
@@ -181,22 +180,24 @@ bool HdmiCecAnalyzer::ReadBlock( int blockIndex, Frame& block )
     U64 ackStartSample = mCec->GetSampleNumber();
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     float elapsed = TimeSince( ackStartSample );
-
-    ack = elapsed > 1.3f && elapsed < 1.7f;
-    if( elapsed >= 2.05f )
+    // Logic values are inverted for ACK
+    ack = elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax;
+    // Ack rising edge should happen before the earliest time for the start of the next bit
+    if( elapsed >= HdmiCec::Tim_Bit_LenMin )
         return false;
 
     // Mark ACK bit
     mResults->AddMarker( mCec->GetSampleNumber()-1, ack ? AnalyzerResults::One : AnalyzerResults::Zero,
                          mSettings->mCecChannel );
 
-    // The bus should stay in HIGH at least until 2.05ms
-    U32 samplesToAdvance1 = ( 2.05f - elapsed ) * GetSampleRate() / 1000.0;
+    // Advance to the end of the data bit
+    // The bus should stay in HIGH at least until HdmiCec::Tim_Bit_LenMin
+    U32 samplesToAdvance1 = ( HdmiCec::Tim_Bit_LenMin - elapsed ) * GetSampleRate() / 1000.0;
     if( mCec->WouldAdvancingCauseTransition( samplesToAdvance1 ) )
         return false;
-
-    // If by 2.4 ms there is no rising edge, move up to 2.4ms, else move to 2.05 ms
-    U32 samplesToAdvance2 = ( 2.4f - elapsed ) * GetSampleRate() / 1000.0;
+    // If by the nominal data bit period there is no rising edge, move there,
+    // else move to the minimum data bit period
+    U32 samplesToAdvance2 = ( HdmiCec::Tim_Bit_Len - elapsed ) * GetSampleRate() / 1000.0;
     if( mCec->WouldAdvancingCauseTransition( samplesToAdvance2 ) )
         mCec->Advance( samplesToAdvance1 );
     else
@@ -233,9 +234,9 @@ bool HdmiCecAnalyzer::ReadByteEOM( U8& data, bool& eom )
         float elapsed = TimeSince( firstSample );
 
         bool value;
-        if( elapsed > 0.4f && elapsed < 0.8f )
+        if( elapsed > HdmiCec::Tim_Bit_OneMin && elapsed < HdmiCec::Tim_Bit_OneMax )
             value = true;  // Logical 1
-        else if( elapsed > 1.3f && elapsed < 1.7f )
+        else if( elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax )
             value = false; // Logical 0
         else
             return false;
@@ -245,7 +246,8 @@ bool HdmiCecAnalyzer::ReadByteEOM( U8& data, bool& eom )
 
         mCec->AdvanceToNextEdge(); // HIGH to LOW
         elapsed = TimeSince( firstSample );
-        if( elapsed < 2.05f || elapsed > 2.75f )
+        // Check overall bit period
+        if( elapsed < HdmiCec::Tim_Bit_LenMin || elapsed > HdmiCec::Tim_Bit_LenMax )
             return false;
 
         // Bits 7..0 are written to data, and the extra bit is written to eom

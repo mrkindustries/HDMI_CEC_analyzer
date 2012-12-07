@@ -125,10 +125,10 @@ void HdmiCecSimulationDataGenerator::GenStartSeq()
 
     // Timing values from CEC 1.3a section 5.2.1 "Start Bit Timing"
     mCecSimulationData.Transition(); // HIGH to LOW
-    Advance( 3.7f );
+    Advance( HdmiCec::Tim_Start_A );
 
     mCecSimulationData.Transition(); // LOW to HIGH
-    Advance( 0.8f );
+    Advance( HdmiCec::Tim_Start_B );
 }
 
 void HdmiCecSimulationDataGenerator::GenHeaderBlock( U8 src, U8 dst, bool eom, bool ack )
@@ -151,8 +151,7 @@ void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
     // Timing values are inverted for the follower-asserted ACK bit
     if( ackBit ) value = !value;
     // Timing values from CEC 1.3a section 5.2.2 "Data Bit Timing"
-    const float risingTime = value ? 0.6f : 1.5f;
-    const float totalTime = 2.4f;
+    const float risingTime = value ? HdmiCec::Tim_Bit_One : HdmiCec::Tim_Bit_Zero;
 
     // We should be in low
     mCecSimulationData.TransitionIfNeeded( BIT_LOW );
@@ -160,7 +159,7 @@ void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
     Advance( risingTime );
     mCecSimulationData.Transition(); // LOW to HIGH
 
-    Advance( totalTime - risingTime );
+    Advance( HdmiCec::Tim_Bit_Len - risingTime );
 }
 
 
@@ -174,5 +173,5 @@ void HdmiCecSimulationDataGenerator::AdvanceRand( float minMsecs, float maxMsecs
     // Get a random number from 0 to 1
     float r = static_cast<float>( rand() ) / RAND_MAX;
     // Use r in a weighted sum to obtain a random number from minMsecs to maxMsecs
-    Advance( (1-r) * minMsecs + r * maxMsecs );
+    Advance( (1.0f-r) * minMsecs + r * maxMsecs );
 }

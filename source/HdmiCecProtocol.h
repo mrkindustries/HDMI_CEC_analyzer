@@ -125,6 +125,37 @@ enum OpCode
 const char* GetOpCodeString( OpCode opCode );
 
 //
+// CEC Timing values
+// All values are in msecs.
+//
+
+// Start Sequence
+// CEC 5.2.1 "Start Bit Timing"
+static const float Tim_Start_AMin  = 3.50f;
+static const float Tim_Start_A     = 3.70f;
+static const float Tim_Start_AMax  = 3.90f;
+static const float Tim_Start_BMin  = 4.30f;
+static const float Tim_Start_B     = 4.50f;
+static const float Tim_Start_BMax  = 4.70f;
+
+// Data Bit
+// CEC 5.2.2 "Data Bit Timing"
+// One/Zero timings are reversed for the follower-asserted ACK bit
+
+static const float Tim_Bit_OneMin  = 0.40f;
+static const float Tim_Bit_One     = 0.60f;
+static const float Tim_Bit_OneMax  = 0.80f;
+
+static const float Tim_Bit_ZeroMin = 1.30f;
+static const float Tim_Bit_Zero    = 1.50f;
+static const float Tim_Bit_ZeroMax = 1.70f;
+
+static const float Tim_Bit_LenMin  = 2.05f;
+static const float Tim_Bit_Len     = 2.40f; // "Nominal data bit period"
+static const float Tim_Bit_LenMax  = 2.75f;
+
+
+//
 // Analyzer implementation
 //
 
