@@ -3,25 +3,23 @@
 
 #include <AnalyzerSettings.h>
 #include <AnalyzerTypes.h>
+#include <string>
 
 class HdmiCecAnalyzerSettings : public AnalyzerSettings
 {
 public:
-	HdmiCecAnalyzerSettings();
-	virtual ~HdmiCecAnalyzerSettings();
+    HdmiCecAnalyzerSettings();
+    virtual ~HdmiCecAnalyzerSettings();
 
-	virtual bool SetSettingsFromInterfaces();
-	void UpdateInterfacesFromSettings();
-	virtual void LoadSettings( const char* settings );
-	virtual const char* SaveSettings();
+    virtual bool SetSettingsFromInterfaces();
+    void UpdateInterfacesFromSettings();
+    virtual void LoadSettings( const char* settings );
+    virtual const char* SaveSettings();
 
-	
-	Channel mInputChannel;
-	U32 mBitRate;
+    Channel mCecChannel;
 
 protected:
-	std::auto_ptr< AnalyzerSettingInterfaceChannel >	mInputChannelInterface;
-	std::auto_ptr< AnalyzerSettingInterfaceInteger >	mBitRateInterface;
+    std::auto_ptr< AnalyzerSettingInterfaceChannel >	mCecChannelInterface;
 };
 
 #endif //HDMICEC_ANALYZER_SETTINGS
