@@ -1,11 +1,14 @@
 #include "HdmiCecSimulationDataGenerator.h"
 #include "HdmiCecAnalyzerSettings.h"
 
+#include "HdmiCecProtocol.h"
+
 #include <AnalyzerHelpers.h>
 
+// Include for rand()
+#include <stdlib.h>
+
 HdmiCecSimulationDataGenerator::HdmiCecSimulationDataGenerator()
-:	mSerialText( "My first analyzer, woo hoo!" ),
-	mStringIndex( 0 )
 {
 }
 
@@ -15,57 +18,161 @@ HdmiCecSimulationDataGenerator::~HdmiCecSimulationDataGenerator()
 
 void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, HdmiCecAnalyzerSettings* settings )
 {
-	mSimulationSampleRateHz = simulation_sample_rate;
-	mSettings = settings;
+    mSimulationSampleRateHz = simulation_sample_rate;
+    mSettings = settings;
 
-	mSerialSimulationData.SetChannel( mSettings->mInputChannel );
-	mSerialSimulationData.SetSampleRate( simulation_sample_rate );
-	mSerialSimulationData.SetInitialBitState( BIT_HIGH );
+    // Initialize clock at the recomended sampling rate
+    mClockGenerator.Init( HdmiCec::MinSampleRateHz, mSimulationSampleRateHz );
+
+    // Initialize the random number generator with a literal seed to obtain repeatability
+    // Change this for srand(time(NULL)) for "truly" random sequences
+    // NOTICE rand() an srand() are *not* thread safe
+    srand( 42 );
+
+    mCecSimulationData.SetChannel( mSettings->mCecChannel );
+    mCecSimulationData.SetSampleRate( simulation_sample_rate );
+    mCecSimulationData.SetInitialBitState( BIT_HIGH );
+    // Advance a few ms in HIGH
+    AdvanceRand( 2.0f, 5.0f );
 }
 
 U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
 {
-	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
+    const U64 lastSample = AnalyzerHelpers::AdjustSimulationTargetSample(
+                largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
-	while( mSerialSimulationData.GetCurrentSampleNumber() < adjusted_largest_sample_requested )
-	{
-		CreateSerialByte();
-	}
+    while( mCecSimulationData.GetCurrentSampleNumber() < lastSample )
+    {
+        GenVersionTransaction();
+        AdvanceRand( 5.0f, 15.0f );
 
-	*simulation_channel = &mSerialSimulationData;
-	return 1;
+        GetStandbyTransaction();
+        AdvanceRand( 5.0f, 15.0f );
+
+        GetInitTransaction();
+        AdvanceRand( 5.0f, 15.0f );
+    }
+
+    *simulation_channel = &mCecSimulationData;
+    return 1; // We are simulating one channel
 }
 
-void HdmiCecSimulationDataGenerator::CreateSerialByte()
+//
+// Transaction generation
+//
+
+void HdmiCecSimulationDataGenerator::GenVersionTransaction()
 {
-	U32 samples_per_bit = mSimulationSampleRateHz / mSettings->mBitRate;
+    // The TV sends asks Tuner1 for it's CEC version
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_TV, HdmiCec::DevAddress_Tuner1 );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( HdmiCec::OpCode_GetCecVersion, true, true );
 
-	U8 byte = mSerialText[ mStringIndex ];
-	mStringIndex++;
-	if( mStringIndex == mSerialText.size() )
-		mStringIndex = 0;
+    // Tuner1 asks with a CecVersion opcode and 0x4 (CEC 1.3a) as a single operand
+    AdvanceRand( 5.0f, 10.0f );
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_Tuner1, HdmiCec::DevAddress_TV );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( HdmiCec::OpCode_CecVersion, false, true );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( 0x4, true, true );
+}
 
-	//we're currenty high
-	//let's move forward a little
-	mSerialSimulationData.Advance( samples_per_bit * 10 );
+void HdmiCecSimulationDataGenerator::GetStandbyTransaction()
+{
+    // Audio System sends the TV an standby command
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_AudioSystem, HdmiCec::DevAddress_TV );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( HdmiCec::OpCode_Standby, true, true );
 
-	mSerialSimulationData.Transition();  //low-going edge for start bit
-	mSerialSimulationData.Advance( samples_per_bit );  //add start bit time
+    // The TV decides to forward this message to all the devices
+    AdvanceRand( 5.0f, 10.0f );
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_TV, HdmiCec::DevAddress_UnregBcast );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( HdmiCec::OpCode_Standby, true, true );
+}
 
-	U8 mask = 0x1 << 7;
-	for( U32 i=0; i<8; i++ )
-	{
-		if( ( byte & mask ) != 0 )
-			mSerialSimulationData.TransitionIfNeeded( BIT_HIGH );
-		else
-			mSerialSimulationData.TransitionIfNeeded( BIT_LOW );
+void HdmiCecSimulationDataGenerator::GetInitTransaction()
+{
+    // Tuner1 sends a header block to it's same address to verify that no one
+    // ACKs the block (ie. the logical address is available)
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_Tuner1, HdmiCec::DevAddress_Tuner1, true, false );
 
-		mSerialSimulationData.Advance( samples_per_bit );
-		mask = mask >> 1;
-	}
+    // Tuner1 reports physical address to bcast
+    AdvanceRand( 5.0f, 10.0f );
+    GenStartSeq();
+    GenHeaderBlock( HdmiCec::DevAddress_Tuner1, HdmiCec::DevAddress_UnregBcast, false, false );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( HdmiCec::OpCode_ReportPhysicalAddress, false, false );
+    AdvanceRand( 0.2f, 0.8f );
+    GenDataBlock( 0x10, false, false );
+    GenDataBlock( 0x00, false, false );
+    GenDataBlock( 0x03, true, false );
+}
 
-	mSerialSimulationData.TransitionIfNeeded( BIT_HIGH ); //we need to end high
 
-	//lets pad the end a bit for the stop bit:
-	mSerialSimulationData.Advance( samples_per_bit );
+//
+// Start sequence, block and bit generation
+//
+
+void HdmiCecSimulationDataGenerator::GenStartSeq()
+{
+    // The bus must be in high
+    mCecSimulationData.TransitionIfNeeded( BIT_HIGH );
+
+    // Timing values from CEC 1.3a section 5.2.1 "Start Bit Timing"
+    mCecSimulationData.Transition(); // HIGH to LOW
+    Advance( HdmiCec::Tim_Start_A );
+
+    mCecSimulationData.Transition(); // LOW to HIGH
+    Advance( HdmiCec::Tim_Start_B - HdmiCec::Tim_Start_A );
+}
+
+void HdmiCecSimulationDataGenerator::GenHeaderBlock( U8 src, U8 dst, bool eom, bool ack )
+{
+    const U8 data = ( ( src & 0xF ) << 4) | ( dst & 0xF );
+    GenDataBlock( data, eom, ack );
+}
+
+void HdmiCecSimulationDataGenerator::GenDataBlock( U8 data, bool eom, bool ack )
+{
+    for( int i=7; i>=0; i-- )
+        GenBit( (data >> i) & 0x1 );
+
+    GenBit( eom );
+    GenBit( ack, true );
+}
+
+void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
+{
+    // Timing values are inverted for the follower-asserted ACK bit
+    if( ackBit ) value = !value;
+    // Timing values from CEC 1.3a section 5.2.2 "Data Bit Timing"
+    const float risingTime = value ? HdmiCec::Tim_Bit_One : HdmiCec::Tim_Bit_Zero;
+
+    // We should be in low
+    mCecSimulationData.TransitionIfNeeded( BIT_LOW );
+
+    Advance( risingTime );
+    mCecSimulationData.Transition(); // LOW to HIGH
+
+    Advance( HdmiCec::Tim_Bit_Len - risingTime );
+}
+
+
+void HdmiCecSimulationDataGenerator::Advance( float msecs )
+{
+    mCecSimulationData.Advance( mClockGenerator.AdvanceByTimeS( msecs / 1000.0 ) );
+}
+
+void HdmiCecSimulationDataGenerator::AdvanceRand( float minMsecs, float maxMsecs )
+{
+    // Get a random number from 0 to 1
+    float r = static_cast<float>( rand() ) / RAND_MAX;
+    // Use r in a weighted sum to obtain a random number from minMsecs to maxMsecs
+    Advance( (1.0f-r) * minMsecs + r * maxMsecs );
 }

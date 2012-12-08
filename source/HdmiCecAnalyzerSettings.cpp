@@ -1,30 +1,23 @@
 #include "HdmiCecAnalyzerSettings.h"
 #include <AnalyzerHelpers.h>
 
+#include "HdmiCecProtocol.h"
 
 HdmiCecAnalyzerSettings::HdmiCecAnalyzerSettings()
-:	mInputChannel( UNDEFINED_CHANNEL ),
-	mBitRate( 9600 )
+:	mCecChannel( UNDEFINED_CHANNEL )
 {
-	mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-	mInputChannelInterface->SetTitleAndTooltip( "Serial", "Standard HDMI CEC" );
-	mInputChannelInterface->SetChannel( mInputChannel );
+    mCecChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
+    mCecChannelInterface->SetTitleAndTooltip( HdmiCec::GetChannelName(), HdmiCec::GetFullProtocolName() );
+    mCecChannelInterface->SetChannel( mCecChannel );
 
-	mBitRateInterface.reset( new AnalyzerSettingInterfaceInteger() );
-	mBitRateInterface->SetTitleAndTooltip( "Bit Rate (Bits/S)",  "Specify the bit rate in bits per second." );
-	mBitRateInterface->SetMax( 6000000 );
-	mBitRateInterface->SetMin( 1 );
-	mBitRateInterface->SetInteger( mBitRate );
+    AddInterface( mCecChannelInterface.get() );
 
-	AddInterface( mInputChannelInterface.get() );
-	AddInterface( mBitRateInterface.get() );
+    AddExportOption( 0, "Export as text/csv file" );
+    AddExportExtension( 0, "text", "txt" );
+    AddExportExtension( 0, "csv", "csv" );
 
-	AddExportOption( 0, "Export as text/csv file" );
-	AddExportExtension( 0, "text", "txt" );
-	AddExportExtension( 0, "csv", "csv" );
-
-	ClearChannels();
-	AddChannel( mInputChannel, "Serial", false );
+    ClearChannels();
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), false );
 }
 
 HdmiCecAnalyzerSettings::~HdmiCecAnalyzerSettings()
@@ -33,41 +26,37 @@ HdmiCecAnalyzerSettings::~HdmiCecAnalyzerSettings()
 
 bool HdmiCecAnalyzerSettings::SetSettingsFromInterfaces()
 {
-	mInputChannel = mInputChannelInterface->GetChannel();
-	mBitRate = mBitRateInterface->GetInteger();
+    mCecChannel = mCecChannelInterface->GetChannel();
 
-	ClearChannels();
-	AddChannel( mInputChannel, "HDMI CEC", true );
+    ClearChannels();
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), true );
 
-	return true;
+    return true;
 }
 
 void HdmiCecAnalyzerSettings::UpdateInterfacesFromSettings()
 {
-	mInputChannelInterface->SetChannel( mInputChannel );
-	mBitRateInterface->SetInteger( mBitRate );
+    mCecChannelInterface->SetChannel( mCecChannel );
 }
 
 void HdmiCecAnalyzerSettings::LoadSettings( const char* settings )
 {
-	SimpleArchive text_archive;
-	text_archive.SetString( settings );
+    SimpleArchive text_archive;
+    text_archive.SetString( settings );
 
-	text_archive >> mInputChannel;
-	text_archive >> mBitRate;
+    text_archive >> mCecChannel;
 
-	ClearChannels();
-	AddChannel( mInputChannel, "HDMI CEC", true );
+    ClearChannels();
+    AddChannel( mCecChannel, HdmiCec::GetProtocolName(), true );
 
-	UpdateInterfacesFromSettings();
+    UpdateInterfacesFromSettings();
 }
 
 const char* HdmiCecAnalyzerSettings::SaveSettings()
 {
-	SimpleArchive text_archive;
+    SimpleArchive text_archive;
 
-	text_archive << mInputChannel;
-	text_archive << mBitRate;
+    text_archive << mCecChannel;
 
-	return SetReturnString( text_archive.GetString() );
+    return SetReturnString( text_archive.GetString() );
 }
