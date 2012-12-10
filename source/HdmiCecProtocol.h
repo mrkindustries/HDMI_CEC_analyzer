@@ -64,27 +64,18 @@ static const float Tim_Bit_LenMax  = 2.75f;
 // Analyzer implementation
 //
 
-// Block types to be used in Frame.mType
-// We consider the Start Sequence another type of block
-// CEC 6 "Frame Description"
-enum BlockType
+// Analyzer frame types
+enum FrameType
 {
-    BlockType_StartSeq, // CEC start sequence
-    BlockType_Header,   // Header block containing SRC and DST addresses
-    BlockType_OpCode,   // Block containing an opcode
-    BlockType_Operand   // Block containing a single operand
+    FrameType_StartSeq, // CEC start sequence
+    FrameType_Header,   // Header byte containing SRC and DST addresses
+    FrameType_OpCode,   // Opcode byte
+    FrameType_Operand,  // Operand byte
+    FrameType_EOM,      // EOM bit
+    FrameType_ACK       // ACK bit
 };
 
-const char* GetBlockTypeString( BlockType blockType );
-
-// Flags of the 10-bit CEC block to be used in Frame.mFlags
-// CEC 6.1 "Header/Data Block description"
-enum BlockFlags
-{
-    BlockFlag_EOM = (1 << 0),
-    BlockFlag_ACK = (1 << 1)
-};
-
+const char* GetFrameTypeString( FrameType type );
 
 //
 // Protocol enums

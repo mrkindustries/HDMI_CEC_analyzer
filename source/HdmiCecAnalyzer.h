@@ -22,13 +22,15 @@ public:
 
 protected:
     // Reads the start sequence, returns false on error
-    bool ReadStartSequence( Frame& block );
-    // Reads a 10-bit CEC block. Sets mType depending on the block position
-    // in the message (as indicated by blockIndex). Returns false on error.
-    bool ReadBlock( int blockIndex, Frame& block );
-    // Reads the block data byte plus the EOM bit written by the initiatior.
-    // Returns false on error
-    bool ReadByteEOM( U8& data, bool& eom );
+    bool ReadStartSequence( Frame& frame );
+    // Functions to read fields from a 10-bit CEC block
+    // All functions return false on error
+    bool ReadBlockByte( int blockIndex, Frame& byteFrame );
+    bool ReadBlockEOM( Frame& eomFrame );
+    bool ReadBlockACK( Frame& ackFrame );
+    // Reads one bit written by the initiatior. *firstSample and *lastSample are
+    // set if the pointers are not null. Returns false on error.
+    bool ReadBit( bool& value, S64* firstSample=0, S64* lastSample=0 );
 
     // Returns the elapsed time in msecs since another sample.
     // TimeSince will return a negative number if "sample" is in the future.

@@ -31,39 +31,62 @@ void HdmiCecAnalyzer::WorkerThread()
     while( true )
     {
         // Read the start sequence
-        Frame startSeqBlock;
-        if( !ReadStartSequence( startSeqBlock ) )
+        Frame startSeq;
+        if( !ReadStartSequence( startSeq ) )
         {
             MarkErrorPosition();
             // On error, cancel the packet and look for another start sequence
             mResults->CancelPacketAndStartNewPacket();
             continue;
         }
-        mResults->AddFrame( startSeqBlock );
+        mResults->AddFrame( startSeq );
         mResults->CommitResults();
-        ReportProgress( startSeqBlock.mEndingSampleInclusive );
+        ReportProgress( startSeq.mEndingSampleInclusive );
 
         int blockPosition = 0;
         bool eom = false;
 
-        // Read all the blocks in the message until the End of Message
+        // Read all the 10-bit blocks in the message until the End of Message
         while( !eom )
         {
-            Frame block;
-            if( !ReadBlock( blockPosition, block ) )
+            // Block byte
+            Frame byteFrame;
+            if( !ReadBlockByte( blockPosition, byteFrame ) )
             {
                 MarkErrorPosition();
-                // On error, cancel the packet and look for another start sequence
                 mResults->CancelPacketAndStartNewPacket();
                 break;
             }
-
-            mResults->AddFrame( block );
+            mResults->AddFrame( byteFrame );
             mResults->CommitResults();
-            ReportProgress( block.mEndingSampleInclusive );
+            ReportProgress( byteFrame.mEndingSampleInclusive );
+
+            // Block End of Message bit
+            Frame eomFrame;
+            if( !ReadBlockEOM( eomFrame ) )
+            {
+                MarkErrorPosition();
+                mResults->CancelPacketAndStartNewPacket();
+                break;
+            }
+            mResults->AddFrame( eomFrame );
+            mResults->CommitResults();
+            ReportProgress( eomFrame.mEndingSampleInclusive );
+
+            // Block ACK bit
+            Frame ackFrame;
+            if( !ReadBlockACK( ackFrame ) )
+            {
+                MarkErrorPosition();
+                mResults->CancelPacketAndStartNewPacket();
+                break;
+            }
+            mResults->AddFrame( ackFrame );
+            mResults->CommitResults();
+            ReportProgress( ackFrame.mEndingSampleInclusive );
 
             blockPosition++;
-            eom = block.mFlags & HdmiCec::BlockFlag_EOM;
+            eom = eomFrame.mData1;
         }
 
         // On the end of a successfully parsed message, insert an End marker
@@ -119,87 +142,102 @@ void DestroyAnalyzer( Analyzer* analyzer )
     delete analyzer;
 }
 
-bool HdmiCecAnalyzer::ReadStartSequence( Frame& block )
+bool HdmiCecAnalyzer::ReadStartSequence( Frame& frame )
 {
     // All timing values are taken from the CEC spec, section 5.2.1 "Start Bit Timing"
 
-    // Wait until the bus is in HIGH
-    if( mCec->GetBitState() == BIT_LOW )
-        mCec->AdvanceToNextEdge();
+    // The bus should be in HIGH
+    if( mCec->GetBitState() == BIT_LOW ) mCec->AdvanceToNextEdge();
 
     // Advance to the next falling edge
     mCec->AdvanceToNextEdge(); // HIGH to LOW
-    U64 startingSample = mCec->GetSampleNumber();
-    float elapsed = 0;
 
-    block.mType = HdmiCec::BlockType_StartSeq;
-    block.mFlags = 0;
-    block.mData1 = 0;
-    block.mStartingSampleInclusive = mCec->GetSampleNumber();
+    frame.mType = HdmiCec::FrameType_StartSeq;
+    frame.mData1 = 0;
+    frame.mStartingSampleInclusive = mCec->GetSampleNumber();
 
     // Advance until the end of the "a" pulse
     mCec->AdvanceToNextEdge(); // LOW to HIGH
-    elapsed = TimeSince( startingSample );
+    float elapsed = TimeSince( frame.mStartingSampleInclusive );
     // Check that pulse ends in the correct time
     if( elapsed < HdmiCec::Tim_Start_AMin || elapsed > HdmiCec::Tim_Start_AMax )
         return false;
 
     // Advance until the end of the "b" pulse
     mCec->AdvanceToNextEdge(); // HIGH to LOW
-    elapsed = TimeSince( startingSample );
+    elapsed = TimeSince( frame.mStartingSampleInclusive );
     // Check that the pulse ends in the correct time
     if( elapsed < HdmiCec::Tim_Start_BMin || elapsed > HdmiCec::Tim_Start_BMax )
         return false;
 
     // Add start marker on beginning sequence
-    mResults->AddMarker( block.mStartingSampleInclusive, AnalyzerResults::Start, mSettings->mCecChannel );
+    mResults->AddMarker( frame.mStartingSampleInclusive, AnalyzerResults::Start, mSettings->mCecChannel );
 
     // The last sample is the sample just before the edge
-    block.mEndingSampleInclusive = mCec->GetSampleNumber()-1;
+    frame.mEndingSampleInclusive = mCec->GetSampleNumber()-1;
     return true;
 }
 
-bool HdmiCecAnalyzer::ReadBlock( int blockIndex, Frame& block )
+bool HdmiCecAnalyzer::ReadBlockByte( int blockIndex, Frame& byteFrame )
 {
-    // Wait until the bus is in LOW
-    if( mCec->GetBitState() == BIT_HIGH )
-        mCec->AdvanceToNextEdge();
+    // The bus should be in LOW
+    if( mCec->GetBitState() == BIT_HIGH ) mCec->AdvanceToNextEdge();
 
-    // Reset flags
-    block.mFlags = 0;
+    // Read block byte
+    bool value;
+    U8 byte= 0;
 
-    // Depending on the position on the message set block type
+    for( int bit= 7; bit>=0; bit-- ) {
+        S64* firstSample = (bit == 7) ? &byteFrame.mStartingSampleInclusive : 0;
+        S64* lastSample = (bit == 0) ? &byteFrame.mEndingSampleInclusive : 0;
+        if( !ReadBit(value, firstSample, lastSample) )
+            return false;
+        byte |= value << bit;
+    }
+    byteFrame.mData1= byte;
+
+    // Depending on the position on the message set blockByte type
     if( !blockIndex )
-        block.mType = HdmiCec::BlockType_Header;
+        byteFrame.mType = HdmiCec::FrameType_Header;
     else if( blockIndex == 1 )
-        block.mType = HdmiCec::BlockType_OpCode;
+        byteFrame.mType = HdmiCec::FrameType_OpCode;
     else if( blockIndex < HdmiCec::MaxMessageBlocks )
-        block.mType = HdmiCec::BlockType_Operand;
+        byteFrame.mType = HdmiCec::FrameType_Operand;
     else
         return false;
 
-    block.mStartingSampleInclusive = mCec->GetSampleNumber();
+    return true;
+}
 
-    // Read block byte and End of Message bit
-    U8 data;
+bool HdmiCecAnalyzer::ReadBlockEOM( Frame& eomFrame )
+{
     bool eom;
-    if( !ReadByteEOM( data, eom ) )
+    // Read EOM bit
+    if( !ReadBit( eom, &eomFrame.mStartingSampleInclusive, &eomFrame.mEndingSampleInclusive ) )
         return false;
+    eomFrame.mData1 = eom;
+    eomFrame.mType = HdmiCec::FrameType_EOM;
 
-    // Read block ACK
-    bool ack;
-    // ReadByteEOM quits just after the falling edge (we are in LOW)
-    U64 ackStartSample = mCec->GetSampleNumber();
+    return true;
+}
+
+bool HdmiCecAnalyzer::ReadBlockACK( Frame& ackFrame )
+{
+    // The bus should be in LOW
+    if( mCec->GetBitState() == BIT_HIGH ) mCec->AdvanceToNextEdge();
+
+    ackFrame.mStartingSampleInclusive = mCec->GetSampleNumber();
     mCec->AdvanceToNextEdge(); // LOW to HIGH
-    float elapsed = TimeSince( ackStartSample );
+    float elapsed = TimeSince( ackFrame.mStartingSampleInclusive );
+
     // Logic values are inverted for ACK
-    ack = elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax;
+    bool ack = elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax;
     // Ack rising edge should happen before the earliest time for the start of the next bit
     if( elapsed >= HdmiCec::Tim_Bit_LenMin )
         return false;
 
     // Mark ACK bit
-    mResults->AddMarker( mCec->GetSampleNumber()-1, ack ? AnalyzerResults::One : AnalyzerResults::Zero,
+    mResults->AddMarker( mCec->GetSampleNumber(), ack ? AnalyzerResults::One : AnalyzerResults::Zero,
                          mSettings->mCecChannel );
 
     // Advance to the end of the data bit
@@ -215,59 +253,46 @@ bool HdmiCecAnalyzer::ReadBlock( int blockIndex, Frame& block )
     else
         mCec->Advance( samplesToAdvance2 );
 
-    // The block ends just before the edge where the bus returns to high
-    block.mEndingSampleInclusive = mCec->GetSampleNumber()-1;
-
-    // Store block data and flags
-    block.mData1 = data;
-    if( eom ) block.mFlags |= HdmiCec::BlockFlag_EOM;
-    if( ack ) block.mFlags |= HdmiCec::BlockFlag_ACK;
+    ackFrame.mData1= ack;
+    ackFrame.mType = HdmiCec::FrameType_ACK;
+    ackFrame.mEndingSampleInclusive = mCec->GetSampleNumber()-1;
 
     return true;
 }
 
-bool HdmiCecAnalyzer::ReadByteEOM( U8& data, bool& eom )
+bool HdmiCecAnalyzer::ReadBit( bool& value, S64* firstSample, S64* lastSample )
 {
     // All timing values are taken from the CEC spec, section 5.2.2 "Data Bit Timing"
 
-    // Wait until the bus is in LOW
-    if( mCec->GetBitState() == BIT_HIGH )
-        mCec->AdvanceToNextEdge();
+    // The bus should be in LOW
+    if( mCec->GetBitState() == BIT_HIGH ) mCec->AdvanceToNextEdge();
 
-    // Reset data
-    data= 0;
+    U64 startSample = mCec->GetSampleNumber();
 
-    // Read from the MSB to the LSB, then read the EOM bit ("bit -1")
-    for( int bit=7; bit>=-1; bit-- )
-    {
-        U64 firstSample = mCec->GetSampleNumber();
+    mCec->AdvanceToNextEdge(); // LOW to HIGH
+    float elapsed = TimeSince( startSample );
 
-        mCec->AdvanceToNextEdge(); // LOW to HIGH
-        float elapsed = TimeSince( firstSample );
+    if( elapsed > HdmiCec::Tim_Bit_OneMin && elapsed < HdmiCec::Tim_Bit_OneMax )
+        value = true;  // Logical 1
+    else if( elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax )
+        value = false; // Logical 0
+    else
+        return false;
+    // Mark bit
+    mResults->AddMarker( mCec->GetSampleNumber(), value ? AnalyzerResults::One : AnalyzerResults::Zero,
+                         mSettings->mCecChannel );
 
-        bool value;
-        if( elapsed > HdmiCec::Tim_Bit_OneMin && elapsed < HdmiCec::Tim_Bit_OneMax )
-            value = true;  // Logical 1
-        else if( elapsed > HdmiCec::Tim_Bit_ZeroMin && elapsed < HdmiCec::Tim_Bit_ZeroMax )
-            value = false; // Logical 0
-        else
-            return false;
-        // Mark bit
-        mResults->AddMarker( mCec->GetSampleNumber(), value ? AnalyzerResults::One : AnalyzerResults::Zero,
-                             mSettings->mCecChannel );
+    mCec->AdvanceToNextEdge(); // HIGH to LOW
+    elapsed = TimeSince( startSample );
+    // Check overall bit period
+    if( elapsed < HdmiCec::Tim_Bit_LenMin || elapsed > HdmiCec::Tim_Bit_LenMax )
+        return false;
 
-        mCec->AdvanceToNextEdge(); // HIGH to LOW
-        elapsed = TimeSince( firstSample );
-        // Check overall bit period
-        if( elapsed < HdmiCec::Tim_Bit_LenMin || elapsed > HdmiCec::Tim_Bit_LenMax )
-            return false;
+    if( firstSample )
+        *firstSample = startSample;
+    if(lastSample)
+        *lastSample= mCec->GetSampleNumber()-1;
 
-        // Bits 7..0 are written to data, and the extra bit is written to eom
-        if( bit >= 0 )
-            data |= value << bit;
-        else
-            eom = value;
-    }
     return true;
 }
 
