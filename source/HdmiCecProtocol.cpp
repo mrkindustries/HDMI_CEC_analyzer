@@ -114,7 +114,7 @@ const char* GetOpCodeString( OpCode opCode )
     return "Invalid";
 }
 
-const char* GetFrameTypeString(FrameType type )
+const char* GetFrameTypeString( FrameType type )
 {
     switch( type )
     {

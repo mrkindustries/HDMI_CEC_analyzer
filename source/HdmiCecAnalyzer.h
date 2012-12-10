@@ -34,7 +34,7 @@ protected:
 
     // Returns the elapsed time in msecs since another sample.
     // TimeSince will return a negative number if "sample" is in the future.
-    float TimeSince( U64 sample );
+    float TimeSince( S64 sample );
     // Adds an error marker to the current position
     void MarkErrorPosition();
 

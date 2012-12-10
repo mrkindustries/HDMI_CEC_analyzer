@@ -35,8 +35,6 @@ void HdmiCecAnalyzer::WorkerThread()
         if( !ReadStartSequence( startSeq ) )
         {
             MarkErrorPosition();
-            // On error, cancel the packet and look for another start sequence
-            mResults->CancelPacketAndStartNewPacket();
             continue;
         }
         mResults->AddFrame( startSeq );
@@ -54,7 +52,6 @@ void HdmiCecAnalyzer::WorkerThread()
             if( !ReadBlockByte( blockPosition, byteFrame ) )
             {
                 MarkErrorPosition();
-                mResults->CancelPacketAndStartNewPacket();
                 break;
             }
             mResults->AddFrame( byteFrame );
@@ -66,7 +63,6 @@ void HdmiCecAnalyzer::WorkerThread()
             if( !ReadBlockEOM( eomFrame ) )
             {
                 MarkErrorPosition();
-                mResults->CancelPacketAndStartNewPacket();
                 break;
             }
             mResults->AddFrame( eomFrame );
@@ -78,7 +74,6 @@ void HdmiCecAnalyzer::WorkerThread()
             if( !ReadBlockACK( ackFrame ) )
             {
                 MarkErrorPosition();
-                mResults->CancelPacketAndStartNewPacket();
                 break;
             }
             mResults->AddFrame( ackFrame );
@@ -94,10 +89,9 @@ void HdmiCecAnalyzer::WorkerThread()
         if( eom ) {
             mResults->CommitPacketAndStartNewPacket();
             mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mCecChannel );
+            mResults->CommitResults();
+            ReportProgress( mCec->GetSampleNumber() );
         }
-
-        mResults->CommitResults();
-        ReportProgress( mCec->GetSampleNumber() );
     }
 }
 
@@ -159,6 +153,7 @@ bool HdmiCecAnalyzer::ReadStartSequence( Frame& frame )
     // Advance until the end of the "a" pulse
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     float elapsed = TimeSince( frame.mStartingSampleInclusive );
+
     // Check that pulse ends in the correct time
     if( elapsed < HdmiCec::Tim_Start_AMin || elapsed > HdmiCec::Tim_Start_AMax )
         return false;
@@ -166,6 +161,7 @@ bool HdmiCecAnalyzer::ReadStartSequence( Frame& frame )
     // Advance until the end of the "b" pulse
     mCec->AdvanceToNextEdge(); // HIGH to LOW
     elapsed = TimeSince( frame.mStartingSampleInclusive );
+
     // Check that the pulse ends in the correct time
     if( elapsed < HdmiCec::Tim_Start_BMin || elapsed > HdmiCec::Tim_Start_BMax )
         return false;
@@ -185,16 +181,16 @@ bool HdmiCecAnalyzer::ReadBlockByte( int blockIndex, Frame& byteFrame )
 
     // Read block byte
     bool value;
-    U8 byte= 0;
+    U8 byte = 0;
 
     for( int bit= 7; bit>=0; bit-- ) {
-        S64* firstSample = (bit == 7) ? &byteFrame.mStartingSampleInclusive : 0;
-        S64* lastSample = (bit == 0) ? &byteFrame.mEndingSampleInclusive : 0;
+        S64* firstSample = ( bit == 7 ) ? &byteFrame.mStartingSampleInclusive : 0;
+        S64* lastSample = ( bit == 0 ) ? &byteFrame.mEndingSampleInclusive : 0;
         if( !ReadBit(value, firstSample, lastSample) )
             return false;
         byte |= value << bit;
     }
-    byteFrame.mData1= byte;
+    byteFrame.mData1 = byte;
 
     // Depending on the position on the message set blockByte type
     if( !blockIndex )
@@ -253,9 +249,9 @@ bool HdmiCecAnalyzer::ReadBlockACK( Frame& ackFrame )
     else
         mCec->Advance( samplesToAdvance2 );
 
-    ackFrame.mData1= ack;
+    ackFrame.mData1 = ack;
     ackFrame.mType = HdmiCec::FrameType_ACK;
-    ackFrame.mEndingSampleInclusive = mCec->GetSampleNumber()-1;
+    ackFrame.mEndingSampleInclusive = mCec->GetSampleNumber() - 1;
 
     return true;
 }
@@ -267,7 +263,7 @@ bool HdmiCecAnalyzer::ReadBit( bool& value, S64* firstSample, S64* lastSample )
     // The bus should be in LOW
     if( mCec->GetBitState() == BIT_HIGH ) mCec->AdvanceToNextEdge();
 
-    U64 startSample = mCec->GetSampleNumber();
+    S64 startSample = mCec->GetSampleNumber();
 
     mCec->AdvanceToNextEdge(); // LOW to HIGH
     float elapsed = TimeSince( startSample );
@@ -290,13 +286,13 @@ bool HdmiCecAnalyzer::ReadBit( bool& value, S64* firstSample, S64* lastSample )
 
     if( firstSample )
         *firstSample = startSample;
-    if(lastSample)
-        *lastSample= mCec->GetSampleNumber()-1;
+    if( lastSample )
+        *lastSample = mCec->GetSampleNumber() - 1;
 
     return true;
 }
 
-float HdmiCecAnalyzer::TimeSince( U64 sample )
+float HdmiCecAnalyzer::TimeSince( S64 sample )
 {
     const S64 sampleDiff = mCec->GetSampleNumber() - sample;
     return sampleDiff * 1000.0 / GetSampleRate();
@@ -305,4 +301,8 @@ float HdmiCecAnalyzer::TimeSince( U64 sample )
 void HdmiCecAnalyzer::MarkErrorPosition()
 {
     mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::ErrorDot, mSettings->mCecChannel );
+    mResults->CommitResults();
+    ReportProgress( mCec->GetSampleNumber() );
+    // On error, cancel the packet and look for another start sequence
+    mResults->CancelPacketAndStartNewPacket();
 }

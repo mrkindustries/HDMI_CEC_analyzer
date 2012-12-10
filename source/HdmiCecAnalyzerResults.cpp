@@ -159,7 +159,7 @@ void HdmiCecAnalyzerResults::GenStartSeqBubble()
     AddResult( "Start Sequence" );
 }
 
-void HdmiCecAnalyzerResults::GenHeaderBubble(const Frame& frame )
+void HdmiCecAnalyzerResults::GenHeaderBubble( const Frame& frame )
 {
     const U8 src = ( frame.mData1 >> 4 ) & 0xF;
     const U8 dst = ( frame.mData1 >> 0 ) & 0xF;
@@ -181,7 +181,7 @@ void HdmiCecAnalyzerResults::GenHeaderBubble(const Frame& frame )
     AddResult( "Header SRC=" + srcStr + " (" + srcName + "), DST=" + dstStr + " ("+dstName+")" );
 }
 
-void HdmiCecAnalyzerResults::GenOpCodeBubble(const Frame& frame )
+void HdmiCecAnalyzerResults::GenOpCodeBubble( const Frame& frame )
 {
     HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( frame.mData1 );
     std::string opCodeStr = GetNumberString( frame.mData1, 8 );
@@ -196,7 +196,7 @@ void HdmiCecAnalyzerResults::GenOpCodeBubble(const Frame& frame )
     AddResult( "Opcode " + opCodeStr + " (" + opCodeText + ")" );
 }
 
-void HdmiCecAnalyzerResults::GenOperandBubble(const Frame& frame )
+void HdmiCecAnalyzerResults::GenOperandBubble( const Frame& frame )
 {
     std::string dataStr = GetNumberString( frame.mData1, 8 );
 
@@ -208,7 +208,7 @@ void HdmiCecAnalyzerResults::GenOperandBubble(const Frame& frame )
     AddResult( "Data " + dataStr );
 }
 
-void HdmiCecAnalyzerResults::GenEOMBubble(const Frame& frame )
+void HdmiCecAnalyzerResults::GenEOMBubble( const Frame& frame )
 {
     bool eom = frame.mData1;
 
@@ -221,7 +221,7 @@ void HdmiCecAnalyzerResults::GenEOMBubble(const Frame& frame )
     AddResult( "End of Message = " + std::string(eom ? "1" : "0") );
 }
 
-void HdmiCecAnalyzerResults::GenACKBubble(const Frame& frame )
+void HdmiCecAnalyzerResults::GenACKBubble( const Frame& frame )
 {
     bool ack = frame.mData1;
 

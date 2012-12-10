@@ -20,6 +20,8 @@ void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Hdm
 {
     mSimulationSampleRateHz = simulation_sample_rate;
     mSettings = settings;
+    mSimulateErrors = true;
+    mErrorType = ERR_NOERROR;
 
     // Initialize clock at the recomended sampling rate
     mClockGenerator.Init( HdmiCec::MinSampleRateHz, mSimulationSampleRateHz );
@@ -33,7 +35,7 @@ void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Hdm
     mCecSimulationData.SetSampleRate( simulation_sample_rate );
     mCecSimulationData.SetInitialBitState( BIT_HIGH );
     // Advance a few ms in HIGH
-    AdvanceRand( 2.0f, 5.0f );
+    AdvanceRand( 0.5f, 2.0f );
 }
 
 U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
@@ -43,12 +45,15 @@ U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_r
 
     while( mCecSimulationData.GetCurrentSampleNumber() < lastSample )
     {
+        SetRandomErrorType();
         GenVersionTransaction();
         AdvanceRand( 5.0f, 15.0f );
 
+        SetRandomErrorType();
         GetStandbyTransaction();
         AdvanceRand( 5.0f, 15.0f );
 
+        SetRandomErrorType();
         GetInitTransaction();
         AdvanceRand( 5.0f, 15.0f );
     }
@@ -67,7 +72,10 @@ void HdmiCecSimulationDataGenerator::GenVersionTransaction()
     GenStartSeq();
     GenHeaderBlock( HdmiCec::DevAddress_TV, HdmiCec::DevAddress_Tuner1 );
     AdvanceRand( 0.2f, 0.8f );
-    GenDataBlock( HdmiCec::OpCode_GetCecVersion, true, true );
+    if( mErrorType == ERR_WRONGEOM )
+        GenDataBlock( HdmiCec::OpCode_GetCecVersion, false, true );
+    else
+        GenDataBlock( HdmiCec::OpCode_GetCecVersion, true, true );
 
     // Tuner1 asks with a CecVersion opcode and 0x4 (CEC 1.3a) as a single operand
     AdvanceRand( 5.0f, 10.0f );
@@ -85,7 +93,10 @@ void HdmiCecSimulationDataGenerator::GetStandbyTransaction()
     GenStartSeq();
     GenHeaderBlock( HdmiCec::DevAddress_AudioSystem, HdmiCec::DevAddress_TV );
     AdvanceRand( 0.2f, 0.8f );
-    GenDataBlock( HdmiCec::OpCode_Standby, true, true );
+    if( mErrorType == ERR_WRONGEOM )
+        GenDataBlock( HdmiCec::OpCode_Standby, false, true );
+    else
+        GenDataBlock( HdmiCec::OpCode_Standby, true, true );
 
     // The TV decides to forward this message to all the devices
     AdvanceRand( 5.0f, 10.0f );
@@ -110,7 +121,10 @@ void HdmiCecSimulationDataGenerator::GetInitTransaction()
     GenDataBlock( HdmiCec::OpCode_ReportPhysicalAddress, false, false );
     AdvanceRand( 0.2f, 0.8f );
     GenDataBlock( 0x10, false, false );
-    GenDataBlock( 0x00, false, false );
+    if( mErrorType == ERR_WRONGEOM )
+        GenDataBlock( 0x00, true, false );
+    else
+        GenDataBlock( 0x00, false, false );
     GenDataBlock( 0x03, true, false );
 }
 
@@ -121,6 +135,9 @@ void HdmiCecSimulationDataGenerator::GetInitTransaction()
 
 void HdmiCecSimulationDataGenerator::GenStartSeq()
 {
+    if( mErrorType == ERR_NOSTARTSEQ )
+        return;
+
     // The bus must be in high
     mCecSimulationData.TransitionIfNeeded( BIT_HIGH );
 
@@ -143,8 +160,10 @@ void HdmiCecSimulationDataGenerator::GenDataBlock( U8 data, bool eom, bool ack )
     for( int i=7; i>=0; i-- )
         GenBit( (data >> i) & 0x1 );
 
-    GenBit( eom );
-    GenBit( ack, true );
+    if( mErrorType != ERR_NOEOM )
+        GenBit( eom );
+    if( mErrorType != ERR_NOACK )
+        GenBit( ack, true );
 }
 
 void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
@@ -172,7 +191,20 @@ void HdmiCecSimulationDataGenerator::Advance( float msecs )
 void HdmiCecSimulationDataGenerator::AdvanceRand( float minMsecs, float maxMsecs )
 {
     // Get a random number from 0 to 1
-    float r = static_cast<float>( rand() ) / RAND_MAX;
+    float r = frand();
     // Use r in a weighted sum to obtain a random number from minMsecs to maxMsecs
     Advance( (1.0f-r) * minMsecs + r * maxMsecs );
+}
+
+float HdmiCecSimulationDataGenerator::frand()
+{
+    return static_cast<float>( rand() ) / RAND_MAX;
+}
+
+void HdmiCecSimulationDataGenerator::SetRandomErrorType()
+{
+    if( mSimulateErrors )
+        mErrorType = static_cast<ErrorType>( rand() % 5 );
+    else
+        mErrorType = ERR_NOERROR;
 }
