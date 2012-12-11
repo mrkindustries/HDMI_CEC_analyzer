@@ -86,7 +86,8 @@ void HdmiCecAnalyzer::WorkerThread()
 
         // On the end of a successfully parsed message, insert an End marker
         // and commit the "packet"
-        if( eom ) {
+        if( eom )
+        {
             mResults->CommitPacketAndStartNewPacket();
             mResults->AddMarker( mCec->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mCecChannel );
             mResults->CommitResults();
@@ -183,7 +184,8 @@ bool HdmiCecAnalyzer::ReadBlockByte( int blockIndex, Frame& byteFrame )
     bool value;
     U8 byte = 0;
 
-    for( int bit= 7; bit>=0; bit-- ) {
+    for( int bit= 7; bit>=0; bit-- )
+    {
         S64* firstSample = ( bit == 7 ) ? &byteFrame.mStartingSampleInclusive : 0;
         S64* lastSample = ( bit == 0 ) ? &byteFrame.mEndingSampleInclusive : 0;
         if( !ReadBit(value, firstSample, lastSample) )

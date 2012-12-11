@@ -24,7 +24,8 @@ protected:
 
     // Error simulation parameters
     bool mSimulateErrors;
-    enum ErrorType {
+    enum ErrorType
+    {
         ERR_NOERROR,    // No error will be introduced
         ERR_NOSTARTSEQ, // Start sequence will be ommited
         ERR_NOACK,      // ACK bit will be ommited

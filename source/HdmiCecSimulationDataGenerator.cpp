@@ -73,9 +73,14 @@ void HdmiCecSimulationDataGenerator::GenVersionTransaction()
     GenHeaderBlock( HdmiCec::DevAddress_TV, HdmiCec::DevAddress_Tuner1 );
     AdvanceRand( 0.2f, 0.8f );
     if( mErrorType == ERR_WRONGEOM )
+    {
         GenDataBlock( HdmiCec::OpCode_GetCecVersion, false, true );
+        mErrorType = ERR_NOERROR;
+    }
     else
+    {
         GenDataBlock( HdmiCec::OpCode_GetCecVersion, true, true );
+    }
 
     // Tuner1 asks with a CecVersion opcode and 0x4 (CEC 1.3a) as a single operand
     AdvanceRand( 5.0f, 10.0f );
@@ -94,9 +99,14 @@ void HdmiCecSimulationDataGenerator::GetStandbyTransaction()
     GenHeaderBlock( HdmiCec::DevAddress_AudioSystem, HdmiCec::DevAddress_TV );
     AdvanceRand( 0.2f, 0.8f );
     if( mErrorType == ERR_WRONGEOM )
+    {
         GenDataBlock( HdmiCec::OpCode_Standby, false, true );
+        mErrorType = ERR_NOERROR;
+    }
     else
+    {
         GenDataBlock( HdmiCec::OpCode_Standby, true, true );
+    }
 
     // The TV decides to forward this message to all the devices
     AdvanceRand( 5.0f, 10.0f );
@@ -122,9 +132,14 @@ void HdmiCecSimulationDataGenerator::GetInitTransaction()
     AdvanceRand( 0.2f, 0.8f );
     GenDataBlock( 0x10, false, false );
     if( mErrorType == ERR_WRONGEOM )
+    {
         GenDataBlock( 0x00, true, false );
+        mErrorType = ERR_NOERROR;
+    }
     else
+    {
         GenDataBlock( 0x00, false, false );
+    }
     GenDataBlock( 0x03, true, false );
 }
 
@@ -136,7 +151,10 @@ void HdmiCecSimulationDataGenerator::GetInitTransaction()
 void HdmiCecSimulationDataGenerator::GenStartSeq()
 {
     if( mErrorType == ERR_NOSTARTSEQ )
+    {
+        mErrorType = ERR_NOERROR;
         return;
+    }
 
     // The bus must be in high
     mCecSimulationData.TransitionIfNeeded( BIT_HIGH );
@@ -162,8 +180,13 @@ void HdmiCecSimulationDataGenerator::GenDataBlock( U8 data, bool eom, bool ack )
 
     if( mErrorType != ERR_NOEOM )
         GenBit( eom );
+    else
+        mErrorType = ERR_NOERROR;
+
     if( mErrorType != ERR_NOACK )
         GenBit( ack, true );
+    else
+        mErrorType = ERR_NOERROR;
 }
 
 void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
