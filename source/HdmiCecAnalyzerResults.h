@@ -25,14 +25,14 @@ protected: //functions
     // Generate bubbles for different frame types.
     void GenBubbleText( U64 frame_index, DisplayBase display_base, bool tabular );
     void GenStartSeqBubble();
-    void GenHeaderBubble( const Frame& block );
-    void GenOpCodeBubble( const Frame& block );
-    void GenOperandBubble( const Frame& block );
+    void GenHeaderBubble( const Frame& frame );
+    void GenOpCodeBubble( const Frame& frame );
+    void GenOperandBubble( const Frame& frame );
+    void GenEOMBubble( const Frame& frame );
+    void GenACKBubble( const Frame& frame );
 
     // std::string wrapper for AddResultString
     void AddResult( const std::string& str );
-    // std::string wrapper for AddResultString that appends block EOM/ACK info
-    void AddResult( const std::string& str, const Frame& block );
     // std::string wrapper for AnalyzerHelpers::GetNumberString using mDisplayBase
     std::string GetNumberString( U64 number, int bits );
 
