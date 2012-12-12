@@ -114,14 +114,16 @@ const char* GetOpCodeString( OpCode opCode )
     return "Invalid";
 }
 
-const char* GetBlockTypeString( BlockType blockType )
+const char* GetFrameTypeString( FrameType type )
 {
-    switch( blockType )
+    switch( type )
     {
-        case BlockType_StartSeq: return "StartSeq";
-        case BlockType_Header:   return "Header";
-        case BlockType_OpCode:   return "OpCode";
-        case BlockType_Operand:  return "Operand";
+        case FrameType_StartSeq: return "StartSeq";
+        case FrameType_Header:   return "Header";
+        case FrameType_OpCode:   return "OpCode";
+        case FrameType_Operand:  return "Operand";
+        case FrameType_EOM:      return "EOM";
+        case FrameType_ACK:      return "ACK";
         default: break;
     }
     return "Invalid";

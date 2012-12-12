@@ -22,6 +22,19 @@ protected:
     SimulationChannelDescriptor mCecSimulationData;
     ClockGenerator mClockGenerator;
 
+    // Error simulation parameters
+    bool mSimulateErrors;
+    enum ErrorType
+    {
+        ERR_NOERROR,    // No error will be introduced
+        ERR_NOSTARTSEQ, // Start sequence will be ommited
+        ERR_NOACK,      // ACK bit will be ommited
+        ERR_NOEOM,      // EOM bit will be ommited
+        ERR_WRONGEOM    // EOM will be set to the opposite value
+    };
+    ErrorType mErrorType;
+    void SetRandomErrorType();
+
     // Generates a GetCecVersion/CecVersion request/answer transaction
     void GenVersionTransaction();
     // Generates a Standby transaction
@@ -42,5 +55,8 @@ protected:
     void Advance( float msecs );
     // Advance a random time period from minMsecs to maxMsecs in the current state
     void AdvanceRand( float minMsecs, float maxMsecs );
+
+    // Returns a random float form 0 to 1 using rand()
+    float frand();
 };
 #endif //HDMICEC_SIMULATION_DATA_GENERATOR

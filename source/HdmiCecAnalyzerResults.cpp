@@ -48,73 +48,61 @@ void HdmiCecAnalyzerResults::GenerateExportFile( const char* file, DisplayBase d
     U64 trigger_sample = mAnalyzer->GetTriggerSample();
     U32 sample_rate = mAnalyzer->GetSampleRate();
 
-    file_stream << "Time [s],Block ID,Type,Data Desc,Data,Flags" << std::endl;
+    file_stream << "Time [s],Frame ID,Type,Data,Data Desc" << std::endl;
 
     // String to fill "not applicable" field, maybe an empty string would be
     // easier to parse
     const std::string naString = "N/A";
-    // If this showStartSeqs is set to false, start sequence "blocks" won't be listed
-    const bool showStartSeqs = true;
 
-    U32 blockId = 0;
-    const U64 blockCount = GetNumFrames();
-    for( U64 i=0; i < blockCount; i++ )
+    const U64 frameCount = GetNumFrames();
+    for( U64 i=0; i < frameCount; i++ )
     {
-        Frame block = GetFrame( i );
-        HdmiCec::BlockType blockType= static_cast<HdmiCec::BlockType>( block.mType );
-        bool showBlock = true;
+        Frame frame = GetFrame( i );
+        HdmiCec::FrameType frameType= static_cast<HdmiCec::FrameType>( frame.mType );
 
         const int strLen = 128;
         char timeStr[strLen];
-        AnalyzerHelpers::GetTimeString( block.mStartingSampleInclusive, trigger_sample, sample_rate, timeStr, strLen );
+        AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, timeStr, strLen );
 
-        std::stringstream ss;
-        ss << blockId;
-        std::string blockIdStr = ss.str();
+        std::string typeDesc = HdmiCec::GetFrameTypeString( frameType );
+        std::string dataCode = GetNumberString( frame.mData1, 8 );
 
-        std::string typeDesc = HdmiCec::GetBlockTypeString( blockType );
-
-        std::string flags = ( block.mFlags & HdmiCec::BlockFlag_ACK ) ? "ACK" : "NACK";
-        if( block.mFlags & HdmiCec::BlockFlag_EOM )
-            flags += " EOM";
-
-        std::string dataCode = GetNumberString( block.mData1, 8 );
         std::string dataDesc = naString;
-        if( blockType == HdmiCec::BlockType_Header )
+        if( frameType == HdmiCec::FrameType_Header )
         {
-            const U8 src = ( block.mData1 >> 4 ) & 0xF;
-            const U8 dst = ( block.mData1 >> 0 ) & 0xF;
+            const U8 src = ( frame.mData1 >> 4 ) & 0xF;
+            const U8 dst = ( frame.mData1 >> 0 ) & 0xF;
             std::string srcStr = GetNumberString( src, 4 );
             std::string dstStr = GetNumberString( dst, 4 );
             std::string srcName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( src ) );
             std::string dstName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( dst ) );
             dataDesc = "SRC=" + srcStr + " (" + srcName + ") DST=" + dstStr + " ("+dstName+")";
         }
-        else if( blockType == HdmiCec::BlockType_OpCode )
+        else if( frameType == HdmiCec::FrameType_OpCode )
         {
-            HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( block.mData1 );
+            HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( frame.mData1 );
             dataDesc = HdmiCec::GetOpCodeString( opCode );
         }
-        else if( blockType == HdmiCec::BlockType_StartSeq )
+        else if( frameType == HdmiCec::FrameType_StartSeq )
         {
-            // The start sequence is not really a block
-            blockIdStr = naString;
-            flags = naString;
             dataCode = naString;
-            showBlock = showStartSeqs;
         }
-
-        if( showBlock )
+        else if( frameType == HdmiCec::FrameType_EOM )
         {
-            file_stream << timeStr << "," << blockIdStr << "," << typeDesc << "," <<
-                        dataDesc << "," << dataCode << "," << flags << std::endl;
+            dataDesc= "End of Message = " + std::string( frame.mData1 ? "1" : "0" );
+        }
+        else if( frameType == HdmiCec::FrameType_ACK )
+        {
+            dataDesc= "Acknowledgment = " + std::string( frame.mData1 ? "1" : "0" );
         }
 
-        // Don't count the start sequence "blocks"
-        if( blockType != HdmiCec::BlockType_StartSeq )
-            blockId++;
+        file_stream << timeStr << ",";
+        file_stream << i << ",";
+        file_stream << typeDesc << ",";
+        file_stream << dataCode << ",";
+        file_stream << dataDesc << std::endl;
 
-        if( UpdateExportProgressAndCheckForCancel( i, blockCount ) )
+        if( UpdateExportProgressAndCheckForCancel( i, frameCount ) )
         {
             file_stream.close();
             return;
@@ -137,17 +125,23 @@ void HdmiCecAnalyzerResults::GenBubbleText( U64 frame_index, DisplayBase display
 
     switch( frame.mType )
     {
-        case HdmiCec::BlockType_StartSeq:
+        case HdmiCec::FrameType_StartSeq:
             GenStartSeqBubble();
             break;
-        case HdmiCec::BlockType_Header:
+        case HdmiCec::FrameType_Header:
             GenHeaderBubble( frame );
             break;
-        case HdmiCec::BlockType_OpCode:
+        case HdmiCec::FrameType_OpCode:
             GenOpCodeBubble( frame );
             break;
-        case HdmiCec::BlockType_Operand:
+        case HdmiCec::FrameType_Operand:
             GenOperandBubble( frame );
+            break;
+        case HdmiCec::FrameType_EOM:
+            GenEOMBubble( frame );
+            break;
+        case HdmiCec::FrameType_ACK:
+            GenACKBubble( frame );
             break;
         default:
             break;
@@ -165,10 +159,10 @@ void HdmiCecAnalyzerResults::GenStartSeqBubble()
     AddResult( "Start Sequence" );
 }
 
-void HdmiCecAnalyzerResults::GenHeaderBubble( const Frame& block )
+void HdmiCecAnalyzerResults::GenHeaderBubble( const Frame& frame )
 {
-    const U8 src = ( block.mData1 >> 4 ) & 0xF;
-    const U8 dst = ( block.mData1 >> 0 ) & 0xF;
+    const U8 src = ( frame.mData1 >> 4 ) & 0xF;
+    const U8 dst = ( frame.mData1 >> 0 ) & 0xF;
     std::string srcStr = GetNumberString( src, 4 );
     std::string dstStr = GetNumberString( dst, 4 );
 
@@ -177,7 +171,6 @@ void HdmiCecAnalyzerResults::GenHeaderBubble( const Frame& block )
         AddResult( "H" );
         AddResult( "H " + srcStr + " to " + dstStr );
         AddResult( "Header SRC=" + srcStr + ", DST=" + dstStr );
-        AddResult( "Header SRC=" + srcStr + ", DST=" + dstStr, block );
     }
 
     std::string srcName = HdmiCec::GetDevAddressString(
@@ -185,13 +178,13 @@ void HdmiCecAnalyzerResults::GenHeaderBubble( const Frame& block )
     std::string dstName = HdmiCec::GetDevAddressString(
                 static_cast<HdmiCec::DevAddress>( dst ) );
 
-    AddResult( "Header SRC=" + srcStr + " (" + srcName + "), DST=" + dstStr + " ("+dstName+")", block );
+    AddResult( "Header SRC=" + srcStr + " (" + srcName + "), DST=" + dstStr + " ("+dstName+")" );
 }
 
-void HdmiCecAnalyzerResults::GenOpCodeBubble( const Frame& block )
+void HdmiCecAnalyzerResults::GenOpCodeBubble( const Frame& frame )
 {
-    HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( block.mData1 );
-    std::string opCodeStr = GetNumberString( block.mData1, 8 );
+    HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( frame.mData1 );
+    std::string opCodeStr = GetNumberString( frame.mData1, 8 );
     std::string opCodeText = HdmiCec::GetOpCodeString( opCode );
 
     if( !mTabular )
@@ -199,22 +192,46 @@ void HdmiCecAnalyzerResults::GenOpCodeBubble( const Frame& block )
         AddResult( "O" );
         AddResult( "Op. " + opCodeStr );
         AddResult( "Opcode " + opCodeStr );
-        AddResult( "Opcode " + opCodeStr, block );
     }
-    AddResult( "Opcode " + opCodeStr + " (" + opCodeText + ")", block );
+    AddResult( "Opcode " + opCodeStr + " (" + opCodeText + ")" );
 }
 
-void HdmiCecAnalyzerResults::GenOperandBubble( const Frame& block )
+void HdmiCecAnalyzerResults::GenOperandBubble( const Frame& frame )
 {
-    std::string dataStr = GetNumberString( block.mData1, 8 );
+    std::string dataStr = GetNumberString( frame.mData1, 8 );
 
     if( !mTabular )
     {
         AddResult( "D" );
         AddResult( "Data" );
-        AddResult( "Data " + dataStr );
     }
-    AddResult( "Data " + dataStr, block );
+    AddResult( "Data " + dataStr );
+}
+
+void HdmiCecAnalyzerResults::GenEOMBubble( const Frame& frame )
+{
+    bool eom = frame.mData1;
+
+    if( !mTabular )
+    {
+        AddResult( "E" );
+        AddResult( eom ? "E=1" : "E=0" );
+        AddResult( eom ? "EOM=1" : "EOM=0" );
+    }
+    AddResult( "End of Message = " + std::string(eom ? "1" : "0") );
+}
+
+void HdmiCecAnalyzerResults::GenACKBubble( const Frame& frame )
+{
+    bool ack = frame.mData1;
+
+    if( !mTabular )
+    {
+        AddResult( "A" );
+        AddResult( ack ? "A=1" : "A=0" );
+        AddResult( ack ? "ACK=1" : "ACK=0" );
+    }
+    AddResult( "Acknowledgment = " + std::string(ack ? "1" : "0") );
 }
 
 //
@@ -232,17 +249,4 @@ std::string HdmiCecAnalyzerResults::GetNumberString( U64 number, int bits )
 void HdmiCecAnalyzerResults::AddResult( const std::string& str )
 {
     AddResultString( str.c_str() );
-}
-
-void HdmiCecAnalyzerResults::AddResult( const std::string& str, const Frame& block )
-{
-    const bool ack = block.mFlags & HdmiCec::BlockFlag_ACK;
-    const bool eom = block.mFlags & HdmiCec::BlockFlag_EOM;
-
-    std::string strCopy = str + " |";
-    if( eom )
-        strCopy += " EOM";
-    strCopy += ack ? " ACK" : " NACK";
-
-    AddResultString( strCopy.c_str() );
 }
