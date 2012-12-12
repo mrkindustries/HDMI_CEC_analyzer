@@ -48,67 +48,106 @@ void HdmiCecAnalyzerResults::GenerateExportFile( const char* file, DisplayBase d
     U64 trigger_sample = mAnalyzer->GetTriggerSample();
     U32 sample_rate = mAnalyzer->GetSampleRate();
 
-    file_stream << "Time [s],Frame ID,Type,Data,Data Desc" << std::endl;
+    file_stream << "Time [s],Block ID,Type,Data,Data Desc,EOM,ACK" << std::endl;
 
-    // String to fill "not applicable" field, maybe an empty string would be
-    // easier to parse
+    // String to fill "not applicable" fields
     const std::string naString = "N/A";
 
-    const U64 frameCount = GetNumFrames();
-    for( U64 i=0; i < frameCount; i++ )
+    const U64 frameCount = GetNumFrames();        
+
+    U64 frameId = 0;
+    U64 blockId = 0;
+    int blockField = 0; // 0->byte, 1->EOM, 2->ACK
+
+    // Loop through all the frames, add one line per block
+    while( frameId < frameCount )
     {
-        Frame frame = GetFrame( i );
-        HdmiCec::FrameType frameType= static_cast<HdmiCec::FrameType>( frame.mType );
+        Frame frame = GetFrame( frameId );
+        HdmiCec::FrameType frameType = static_cast<HdmiCec::FrameType>( frame.mType );
 
-        const int strLen = 128;
-        char timeStr[strLen];
-        AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, timeStr, strLen );
-
-        std::string typeDesc = HdmiCec::GetFrameTypeString( frameType );
-        std::string dataCode = GetNumberString( frame.mData1, 8 );
-
-        std::string dataDesc = naString;
-        if( frameType == HdmiCec::FrameType_Header )
+        // Skip start sequence frames
+        if( frameType == HdmiCec::FrameType_StartSeq )
         {
-            const U8 src = ( frame.mData1 >> 4 ) & 0xF;
-            const U8 dst = ( frame.mData1 >> 0 ) & 0xF;
-            std::string srcStr = GetNumberString( src, 4 );
-            std::string dstStr = GetNumberString( dst, 4 );
-            std::string srcName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( src ) );
-            std::string dstName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( dst ) );
-            dataDesc = "SRC=" + srcStr + " (" + srcName + ") DST=" + dstStr + " ("+dstName+")";
-        }
-        else if( frameType == HdmiCec::FrameType_OpCode )
-        {
-            HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( frame.mData1 );
-            dataDesc = HdmiCec::GetOpCodeString( opCode );
-        }
-        else if( frameType == HdmiCec::FrameType_StartSeq )
-        {
-            dataCode = naString;
-        }
-        else if( frameType == HdmiCec::FrameType_EOM )
-        {
-            dataDesc= "End of Message = " + std::string( frame.mData1 ? "1" : "0" );
-        }
-        else if( frameType == HdmiCec::FrameType_ACK )
-        {
-            dataDesc= "Acknowledgment = " + std::string( frame.mData1 ? "1" : "0" );
+            frameId++;
+            continue;
         }
 
-        file_stream << timeStr << ",";
-        file_stream << i << ",";
-        file_stream << typeDesc << ",";
-        file_stream << dataCode << ",";
-        file_stream << dataDesc << std::endl;
+        if( blockField == 0 )
+        {
+            // Add timestamp and block Id
+            const int strLen = 128;
+            char timeStr[strLen];
+            AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample,
+                                            sample_rate, timeStr, strLen );
 
-        if( UpdateExportProgressAndCheckForCancel( i, frameCount ) )
+            std::string typeDesc = HdmiCec::GetFrameTypeString( frameType );
+            std::string dataCode = GetNumberString( frame.mData1, 8 );
+
+            std::string dataDesc = naString;
+            if( frameType == HdmiCec::FrameType_Header )
+            {
+                const U8 src = ( frame.mData1 >> 4 ) & 0xF;
+                const U8 dst = ( frame.mData1 >> 0 ) & 0xF;
+                std::string srcStr = GetNumberString( src, 4 );
+                std::string dstStr = GetNumberString( dst, 4 );
+                std::string srcName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( src ) );
+                std::string dstName = HdmiCec::GetDevAddressString( static_cast<HdmiCec::DevAddress>( dst ) );
+                dataDesc = "SRC=" + srcStr + " (" + srcName + ") DST=" + dstStr + " ("+dstName+")";
+            }
+            else if( frameType == HdmiCec::FrameType_OpCode )
+            {
+                HdmiCec::OpCode opCode = static_cast<HdmiCec::OpCode>( frame.mData1 );
+                dataDesc = HdmiCec::GetOpCodeString( opCode );
+            }
+            else if( frameType == HdmiCec::FrameType_Operand )
+            {
+                dataDesc = naString;
+            }
+            else
+            {
+                // This should not happen
+                frameId++;
+                continue;
+            }
+
+            file_stream << timeStr << ",";
+            file_stream << blockId << ",";
+            file_stream << typeDesc << ",";
+            file_stream << dataCode << ",";
+            file_stream << dataDesc << ",";
+
+            blockField++;
+        }
+        else if( blockField == 1 && frameType == HdmiCec::FrameType_EOM )
+        {
+            file_stream << frame.mData1 << ",";
+            blockField++;
+        }
+        else if( blockField == 2 && frameType == HdmiCec::FrameType_ACK )
+        {
+            file_stream << frame.mData1 << std::endl;
+            blockField = 0;
+            blockId++;
+        }
+        else
+        {
+            // There was an error
+            blockField = 0;
+            blockId++;
+            frameId++;
+            continue;
+        }
+
+        if( UpdateExportProgressAndCheckForCancel( frameId, frameCount ) )
         {
             file_stream.close();
             return;
         }
+
+        frameId++;
     }
 
+    UpdateExportProgressAndCheckForCancel( frameCount, frameCount );
     file_stream.close();
 }
 
