@@ -20,7 +20,7 @@ void HdmiCecSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Hdm
 {
     mSimulationSampleRateHz = simulation_sample_rate;
     mSettings = settings;
-    mSimulateErrors = true;
+    mSimulateErrors = false; // NOTICE change this to introduce simulation errors
     mErrorType = ERR_NOERROR;
 
     // Initialize clock at the recomended sampling rate
