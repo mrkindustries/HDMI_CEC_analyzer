@@ -68,7 +68,7 @@ U32 HdmiCecSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_r
 
 void HdmiCecSimulationDataGenerator::GenVersionTransaction()
 {
-    // The TV sends asks Tuner1 for it's CEC version
+    // The TV asks Tuner1 for it's CEC version
     GenStartSeq();
     GenHeaderBlock( HdmiCec::DevAddress_TV, HdmiCec::DevAddress_Tuner1 );
     AdvanceRand( 0.2f, 0.8f );
@@ -147,7 +147,6 @@ void HdmiCecSimulationDataGenerator::GetInitTransaction()
 //
 // Start sequence, block and bit generation
 //
-
 void HdmiCecSimulationDataGenerator::GenStartSeq()
 {
     if( mErrorType == ERR_NOSTARTSEQ )
@@ -196,7 +195,7 @@ void HdmiCecSimulationDataGenerator::GenBit( bool value, bool ackBit )
     // Timing values from CEC 1.3a section 5.2.2 "Data Bit Timing"
     const float risingTime = value ? HdmiCec::Tim_Bit_One : HdmiCec::Tim_Bit_Zero;
 
-    // We should be in low
+    // We should be in LOW
     mCecSimulationData.TransitionIfNeeded( BIT_LOW );
 
     Advance( risingTime );
